@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "task_id": "DEMO-001",
+  "project_id": "demo-api",
+  "title": "Add due dates to todo items",
+  "type": "feature",
+  "risk": "medium",
+  "status": "ended",
+  "estimate_hours": 6,
+  "branch": "feat/DEMO-001-due-date",
+  "worktree": "wt-1",
+  "started_at": "2026-11-02T09:00:00+08:00",
+  "ended_at": "2026-11-02T13:30:00+08:00",
+  "outcome": "accepted",
+  "completed_by": "ai_with_human_fixes"
+}

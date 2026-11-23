@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:agentic-sdlc-kit:schema:task-brief:1",
+  "title": "Task brief",
+  "description": "The only input handed to a dispatched agent. The planner writes it; the implementer receives the brief alone; the reviewer receives the brief and the diff. Acceptance criteria here define what 'accepted' means.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "task_id",
+    "project_id",
+    "title",
+    "goal",
+    "type",
+    "risk",
+    "assignment",
+    "scope",
+    "acceptance_criteria",
+    "base_branch"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": 1 },
+    "task_id": { "$ref": "#/$defs/task_id" },
+    "project_id": { "$ref": "#/$defs/project_id" },
+    "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "goal": { "type": "string", "minLength": 1, "maxLength": 4000 },
+    "type": { "$ref": "#/$defs/task_type" },
+    "risk": { "$ref": "#/$defs/risk" },
+    "assignment": {
+      "type": "object",
+      "required": ["role", "model_tier"],
+      "additionalProperties": false,
+      "properties": {
+        "role": { "$ref": "#/$defs/role" },
+        "model_tier": { "$ref": "#/$defs/model_tier" },
+        "isolation": {
+          "description": "fresh: new context, project rules loaded. sterile: only the inputs listed in this brief, no rules or memory. Each tool adapter maps these to its own mechanism.",
+          "enum": ["fresh", "sterile"]
+        }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "required": ["allowed_paths"],
+      "additionalProperties": false,
+      "properties": {
+        "allowed_paths": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/repo_path" }, "uniqueItems": true },
+        "forbidden_paths": { "type": "array", "items": { "$ref": "#/$defs/repo_path" }, "uniqueItems": true }
+      }
+    },
+    "acceptance_criteria": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "text"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^AC[0-9]+$" },
+          "text": { "type": "string", "minLength": 1, "maxLength": 1000 }
+        }
+      }
+    },
+    "base_branch": { "type": "string", "minLength": 1, "maxLength": 255 },
+    "estimate_hours": {
+      "description": "Human estimate of the effort WITHOUT AI assistance.",
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 1000
+    },
+    "context": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "read_first": { "type": "array", "items": { "$ref": "#/$defs/repo_path" }, "uniqueItems": true },
+        "notes": { "type": "string", "maxLength": 4000 }
+      }
+    }
+  },
+  "$defs": {
+    "task_id": { "type": "string", "pattern": "^[A-Z][A-Z0-9]*-[0-9]+$", "maxLength": 64 },
+    "project_id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$", "maxLength": 64 },
+    "task_type": { "enum": ["bugfix", "feature", "refactor", "test", "docs", "config", "investigation"] },
+    "risk": { "enum": ["low", "medium", "high", "critical"] },
+    "role": {
+      "description": "Agent role, for example planner, implementer, tester or reviewer. Profiles may define more.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "maxLength": 64
+    },
+    "model_tier": {
+      "description": "Abstract capability tier. A model profile maps it to a concrete model per tool and subscription.",
+      "enum": ["light", "standard", "strong"]
+    },
+    "repo_path": {
+      "description": "Repository-relative path or glob. Never absolute, never containing a '..' segment.",
+      "type": "string",
+      "pattern": "^(?![/\\\\]|[A-Za-z]:)(?!(?:.*[/\\\\])?\\.\\.(?:[/\\\\]|$)).+$",
+      "maxLength": 512
+    }
+  }
+}

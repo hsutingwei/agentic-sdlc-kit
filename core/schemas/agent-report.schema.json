@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:agentic-sdlc-kit:schema:agent-report:1",
+  "title": "Agent report",
+  "description": "What an agent claims when it hands work back. Claims are checked, not trusted: changed_files against the diff, checks against the gate summary for head_sha, acceptance against the brief identified by brief_sha256.",
+  "type": "object",
+  "required": ["schema_version", "task_id", "brief_sha256", "agent", "status", "summary", "acceptance"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": 1 },
+    "task_id": { "$ref": "#/$defs/task_id" },
+    "brief_sha256": {
+      "description": "SHA-256 of the exact task-brief file the agent worked from.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "agent": {
+      "type": "object",
+      "required": ["role", "tool"],
+      "additionalProperties": false,
+      "properties": {
+        "role": { "$ref": "#/$defs/role" },
+        "tool": { "$ref": "#/$defs/tool_id" },
+        "model": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "model_tier": { "$ref": "#/$defs/model_tier" }
+      }
+    },
+    "status": { "enum": ["completed", "partial", "blocked", "failed"] },
+    "head_sha": { "$ref": "#/$defs/git_sha" },
+    "changed_files": { "type": "array", "items": { "$ref": "#/$defs/repo_path" }, "uniqueItems": true },
+    "acceptance": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "status"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^AC[0-9]+$" },
+          "status": { "enum": ["met", "not_met", "not_verified"] },
+          "evidence": { "type": "string", "maxLength": 2000 }
+        }
+      }
+    },
+    "checks": {
+      "description": "Checks the agent says it ran. The gate re-runs them; a claim without a matching gate result counts as unverified.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["check", "result"],
+        "additionalProperties": false,
+        "properties": {
+          "check": { "$ref": "#/$defs/automated_check" },
+          "result": { "enum": ["pass", "fail", "error", "not_run"] },
+          "command": { "type": "string", "maxLength": 500 }
+        }
+      }
+    },
+    "risks": { "type": "array", "items": { "type": "string", "minLength": 1, "maxLength": 500 } },
+    "follow_ups": { "type": "array", "items": { "type": "string", "minLength": 1, "maxLength": 500 } },
+    "summary": { "type": "string", "minLength": 1, "maxLength": 4000 }
+  },
+  "allOf": [
+    {
+      "if": { "required": ["status"], "properties": { "status": { "const": "completed" } } },
+      "then": { "required": ["head_sha", "changed_files"] }
+    }
+  ],
+  "$defs": {
+    "task_id": { "type": "string", "pattern": "^[A-Z][A-Z0-9]*-[0-9]+$", "maxLength": 64 },
+    "git_sha": { "type": "string", "pattern": "^([0-9a-f]{40}|[0-9a-f]{64})$" },
+    "role": {
+      "description": "Agent role, for example planner, implementer, tester or reviewer. Profiles may define more.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "maxLength": 64
+    },
+    "model_tier": {
+      "description": "Abstract capability tier. A model profile maps it to a concrete model per tool and subscription.",
+      "enum": ["light", "standard", "strong"]
+    },
+    "tool_id": {
+      "description": "The agent tool that produced the record, for example claude-code.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "maxLength": 64
+    },
+    "automated_check": { "enum": ["lint", "build", "unit", "integration", "ui", "static"] },
+    "repo_path": {
+      "description": "Repository-relative path or glob. Never absolute, never containing a '..' segment.",
+      "type": "string",
+      "pattern": "^(?![/\\\\]|[A-Za-z]:)(?!(?:.*[/\\\\])?\\.\\.(?:[/\\\\]|$)).+$",
+      "maxLength": 512
+    }
+  }
+}

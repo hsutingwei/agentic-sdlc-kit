@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "task_id": "DEMO-001",
+  "brief_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "agent": { "role": "implementer", "tool": "claude-code", "model": "sonnet", "model_tier": "standard" },
+  "status": "completed",
+  "head_sha": "0123456789abcdef0123456789abcdef01234567",
+  "changed_files": ["src/routes/todos.js", "src/models/todo.js", "test/todos.test.js"],
+  "acceptance": [
+    { "id": "AC1", "status": "met", "evidence": "test/todos.test.js: accepts ISO due_date" },
+    { "id": "AC2", "status": "met", "evidence": "test/todos.test.js: rejects past due_date with 400" },
+    { "id": "AC3", "status": "not_verified" }
+  ],
+  "checks": [
+    { "check": "lint", "result": "pass", "command": "npm run lint" },
+    { "check": "unit", "result": "pass", "command": "npm test" }
+  ],
+  "risks": ["Existing clients that send due_date as a number will now get 400."],
+  "follow_ups": ["Add an index on due_date if the list grows."],
+  "summary": "Added an optional due_date field with validation and an overdue filter."
+}

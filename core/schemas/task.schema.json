@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:agentic-sdlc-kit:schema:task:1",
+  "title": "Task",
+  "description": "One unit of work tracked from start to acceptance. This is the state the collector derives from append-only events; it is never edited in place.",
+  "type": "object",
+  "required": ["schema_version", "task_id", "project_id", "type", "risk", "status", "started_at"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": 1 },
+    "task_id": { "$ref": "#/$defs/task_id" },
+    "project_id": { "$ref": "#/$defs/project_id" },
+    "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "type": { "$ref": "#/$defs/task_type" },
+    "risk": { "$ref": "#/$defs/risk" },
+    "status": { "enum": ["active", "blocked", "ended"] },
+    "estimate_hours": {
+      "description": "Human estimate of the effort WITHOUT AI assistance, recorded at start. Baseline of the efficiency score.",
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 1000
+    },
+    "fixes": {
+      "description": "Earlier tasks whose escaped defect this task fixes. Lowers the quality score of those tasks.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/task_id" },
+      "uniqueItems": true
+    },
+    "branch": { "type": "string", "minLength": 1, "maxLength": 255 },
+    "worktree": { "$ref": "#/$defs/slot_name" },
+    "started_at": { "$ref": "#/$defs/timestamp" },
+    "ended_at": { "$ref": "#/$defs/timestamp" },
+    "outcome": { "enum": ["accepted", "rejected", "abandoned", "deferred"] },
+    "completed_by": { "enum": ["ai", "ai_with_human_fixes", "human"] }
+  },
+  "allOf": [
+    {
+      "if": { "required": ["status"], "properties": { "status": { "const": "ended" } } },
+      "then": { "required": ["ended_at", "outcome"] }
+    },
+    {
+      "if": { "required": ["outcome"], "properties": { "outcome": { "const": "accepted" } } },
+      "then": { "required": ["completed_by"] }
+    }
+  ],
+  "$defs": {
+    "task_id": { "type": "string", "pattern": "^[A-Z][A-Z0-9]*-[0-9]+$", "maxLength": 64 },
+    "project_id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$", "maxLength": 64 },
+    "task_type": { "enum": ["bugfix", "feature", "refactor", "test", "docs", "config", "investigation"] },
+    "risk": { "enum": ["low", "medium", "high", "critical"] },
+    "slot_name": {
+      "description": "Worktree slot name. A name, never an absolute path, so reports carry no local paths.",
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "maxLength": 64
+    },
+    "timestamp": { "type": "string", "format": "date-time" }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "ts": "2026-11-02T01:15:03.250Z",
+  "source": "hook",
+  "event": "PostToolUse",
+  "tool": "claude-code",
+  "session_id": "5f0c2a6e-0000-4000-8000-000000000001",
+  "project_id": "demo-api",
+  "project_source": "git-common-dir",
+  "task_id": "DEMO-001",
+  "worktree": "wt-1",
+  "agent": { "id": "agent-0001", "type": "implementer" },
+  "data": { "tool_name": "Edit", "result": "success", "file_count": 1 }
+}

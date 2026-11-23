@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "task_id": "DEMO-001",
+  "project_id": "demo-api",
+  "title": "Add due dates to todo items",
+  "goal": "Todo items accept an optional due date and the list endpoint can filter overdue items.",
+  "type": "feature",
+  "risk": "medium",
+  "assignment": { "role": "implementer", "model_tier": "standard", "isolation": "fresh" },
+  "scope": {
+    "allowed_paths": ["src/routes/todos.js", "src/models/**", "test/**"],
+    "forbidden_paths": ["migrations/**"]
+  },
+  "acceptance_criteria": [
+    { "id": "AC1", "text": "POST /todos accepts due_date in ISO 8601 format." },
+    { "id": "AC2", "text": "到期日早於今天時回傳 400。" },
+    { "id": "AC3", "text": "GET /todos?overdue=true returns only overdue items." }
+  ],
+  "base_branch": "dev",
+  "estimate_hours": 6,
+  "context": { "read_first": ["src/routes/todos.js"], "notes": "Keep the response shape backwards compatible." }
+}

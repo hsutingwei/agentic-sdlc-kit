@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:agentic-sdlc-kit:schema:gate-summary:1",
+  "title": "Gate summary",
+  "description": "The result of one gate run (summary.json), bound to the exact commit it verified. Gate names and runner ids are configuration, not a fixed list.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "gate",
+    "project_id",
+    "head_sha",
+    "tree_clean",
+    "risk",
+    "steps",
+    "result",
+    "runner",
+    "started_at",
+    "finished_at"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": 1 },
+    "gate": { "$ref": "#/$defs/config_name" },
+    "project_id": { "$ref": "#/$defs/project_id" },
+    "task_id": { "$ref": "#/$defs/task_id" },
+    "head_sha": { "$ref": "#/$defs/git_sha" },
+    "base_branch": { "type": "string", "minLength": 1, "maxLength": 255 },
+    "base_sha": {
+      "description": "Tip of base_branch that head_sha was rebased onto before the run, so the gate verified the merge result.",
+      "$ref": "#/$defs/git_sha"
+    },
+    "tree_clean": { "type": "boolean" },
+    "risk": {
+      "description": "effective must be at least the higher of declared and path_minimum; the gate may raise risk but never lower it.",
+      "type": "object",
+      "required": ["path_minimum", "effective"],
+      "additionalProperties": false,
+      "properties": {
+        "declared": { "$ref": "#/$defs/risk" },
+        "path_minimum": { "$ref": "#/$defs/risk" },
+        "effective": { "$ref": "#/$defs/risk" }
+      }
+    },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name", "kind", "result", "duration_ms"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+          "kind": { "$ref": "#/$defs/automated_check" },
+          "result": { "enum": ["pass", "fail", "error", "skipped"] },
+          "duration_ms": { "type": "integer", "minimum": 0 },
+          "exit_code": { "type": ["integer", "null"] }
+        }
+      }
+    },
+    "result": { "enum": ["pass", "fail", "error"] },
+    "runner": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": false,
+      "properties": { "id": { "$ref": "#/$defs/config_name" } }
+    },
+    "started_at": { "$ref": "#/$defs/timestamp" },
+    "finished_at": { "$ref": "#/$defs/timestamp" }
+  },
+  "$defs": {
+    "task_id": { "type": "string", "pattern": "^[A-Z][A-Z0-9]*-[0-9]+$", "maxLength": 64 },
+    "project_id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$", "maxLength": 64 },
+    "git_sha": { "type": "string", "pattern": "^([0-9a-f]{40}|[0-9a-f]{64})$" },
+    "risk": { "enum": ["low", "medium", "high", "critical"] },
+    "automated_check": { "enum": ["lint", "build", "unit", "integration", "ui", "static"] },
+    "config_name": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$", "maxLength": 64 },
+    "timestamp": { "type": "string", "format": "date-time" }
+  }
+}

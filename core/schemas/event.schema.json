@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:agentic-sdlc-kit:schema:event:1",
+  "title": "Event",
+  "description": "One line of an append-only events/*.jsonl file. Metadata only: data holds at most 32 scalar fields and strings of at most 256 characters, so prompt text and file contents cannot be stored by accident.",
+  "type": "object",
+  "required": ["schema_version", "ts", "source", "event"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": 1 },
+    "ts": { "$ref": "#/$defs/timestamp" },
+    "source": { "enum": ["hook", "cli", "harvest", "gate", "orchestrator"] },
+    "event": {
+      "description": "Event name, for example PreToolUse, SubagentStop or task.start.",
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_.:-]*$",
+      "maxLength": 64
+    },
+    "tool": { "$ref": "#/$defs/tool_id" },
+    "session_id": { "type": "string", "pattern": "^[A-Za-z0-9._-]+$", "maxLength": 128 },
+    "project_id": {
+      "description": "null when no registry entry matched the working directory.",
+      "type": ["string", "null"],
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "maxLength": 64
+    },
+    "project_source": {
+      "description": "How project_id was decided: registry path match, the git common directory of a worktree, a manual override, or none.",
+      "enum": ["registry", "git-common-dir", "manual", "none"]
+    },
+    "task_id": { "$ref": "#/$defs/task_id" },
+    "worktree": { "$ref": "#/$defs/slot_name" },
+    "agent": {
+      "description": "Present when the event came from inside a subagent.",
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^[A-Za-z0-9._-]+$", "maxLength": 128 },
+        "type": { "type": "string", "minLength": 1, "maxLength": 100 }
+      }
+    },
+    "data": {
+      "type": "object",
+      "maxProperties": 32,
+      "additionalProperties": {
+        "type": ["string", "number", "boolean", "null"],
+        "maxLength": 256
+      }
+    }
+  },
+  "$defs": {
+    "task_id": { "type": "string", "pattern": "^[A-Z][A-Z0-9]*-[0-9]+$", "maxLength": 64 },
+    "tool_id": {
+      "description": "The agent tool that produced the record, for example claude-code.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "maxLength": 64
+    },
+    "slot_name": {
+      "description": "Worktree slot name. A name, never an absolute path, so reports carry no local paths.",
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$",
+      "maxLength": 64
+    },
+    "timestamp": { "type": "string", "format": "date-time" }
+  }
+}

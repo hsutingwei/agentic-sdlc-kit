@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "gate": "G2",
+  "project_id": "demo-api",
+  "task_id": "DEMO-001",
+  "head_sha": "0123456789abcdef0123456789abcdef01234567",
+  "base_branch": "dev",
+  "base_sha": "89abcdef0123456789abcdef0123456789abcdef",
+  "tree_clean": true,
+  "risk": { "declared": "low", "path_minimum": "medium", "effective": "medium" },
+  "steps": [
+    { "name": "lint", "kind": "lint", "result": "pass", "duration_ms": 1200, "exit_code": 0 },
+    { "name": "unit tests", "kind": "unit", "result": "pass", "duration_ms": 5400, "exit_code": 0 },
+    { "name": "integration tests", "kind": "integration", "result": "pass", "duration_ms": 18000, "exit_code": 0 }
+  ],
+  "result": "pass",
+  "runner": { "id": "local" },
+  "started_at": "2026-11-02T13:00:00+08:00",
+  "finished_at": "2026-11-02T13:00:25+08:00"
+}

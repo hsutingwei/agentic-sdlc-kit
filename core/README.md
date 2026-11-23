@@ -39,6 +39,12 @@ skipped unknown keywords would make a contract look stricter than it is.
 Because references are local only, definitions shared between schemas are
 repeated in each file; a test fails if any copy drifts.
 
+## Shared helpers
+
+- `git.mjs` – shell-free git calls (`git`, `tryGit`, `repoInfo`, `headSha`, `isClean`).
+- `errors.mjs` – `AsdkError` with an exit code: 1 when a rule or check says no, 2 for usage or configuration problems.
+- `cli.mjs` – argument parsing for the `asdk` commands, built on `node:util` `parseArgs`.
+
 ## Rules the schemas cannot express
 
 Some rules span several fields or records and are enforced in code instead:

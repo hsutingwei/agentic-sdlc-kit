@@ -6,7 +6,7 @@ ends with `npm test` actually run and the result reported.
 | Phase | Scope | Status |
 |---|---|---|
 | P0 | Skeleton, test runner and sandbox, denylist pre-commit hook, CI with gitleaks, `core/` contracts and validator, ADR-0001, [Claude Code behaviour spike](spike/claude-code-behavior.md) | done; CI not yet run |
-| P1 | End-to-end slice on DEMO-001: `wt new` → sub-agent implements → G1 → `task verify` → merge to `dev` → `task end` → one scorecard row | |
+| P1 | End-to-end slice on DEMO-001: `wt new` → sub-agent implements → G1 → `task verify` → merge to `dev` → `task end` → one scorecard row ([demo](demo.md)) | done |
 | P2 | Collector: project registry (worktree-aware), hook recording incl. `SubagentStart`/`SubagentStop`, `hooks install/uninstall` (byte-exact), `enable/disable`, `health` | |
 | P3 | Collector: task lifecycle CLI, lock files, multi-process contention test | |
 | P4 | Collector: token usage harvest, quota snapshots, plan changes | |
@@ -31,3 +31,8 @@ phases deepen it.
 - **Quota data** – headless runs the kit launches record `rate_limit_event` from stream-json automatically; interactive sessions rely on `task snapshot`. See the [spike](spike/claude-code-behavior.md).
 - **Headless runs** – launched with a scrubbed environment; `sterile` means `--safe-mode --no-session-persistence --strict-mcp-config` with a restricted tool list, outside the repository.
 - **Licence holder** – "agentic-sdlc-kit contributors".
+- **CLI** – one entry point, `asdk`, dispatching to the modules.
+- **Events** – append-only, state derived from them ([ADR-0002](adr/0002-append-only-events.md)).
+- **Worktree layout** – `~/wt/<project>/<TASK-ID>` by default (configurable), branch `<type prefix>/<TASK-ID>-<slug>`.
+- **Merging** – rebase onto the latest `dev`, run the gate on the rebased commit, then `merge --no-ff`, only while `dev` is still an ancestor of that commit, so the merged tree is the tree the gate verified.
+- **Demo** – `examples/demo-api` is a template; `tools/demo-setup.mjs` creates a separate repository from it. Hooks are written to that repository's local settings until user-level install arrives (P2).

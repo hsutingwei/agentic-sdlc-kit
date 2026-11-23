@@ -1,7 +1,11 @@
 # governance
 
 Templates and gates that set what an agent may do and what must be proven
-before its work is accepted. Planned for **P6**.
+before its work is accepted. Planned for **P6**, except the gate runner.
+
+**Available since P1:** `asdk gate run <GATE> [--task ID] [--record]` reads gates
+from the project's `.asdk/gates.json` (steps are argv arrays or the built-in
+`syntax-check`), writes a `gate-summary`, and can record the result on the task.
 
 - `templates/AGENTS.md` – tool-neutral agent rules: safety boundaries, plan before editing, fixed report format, verification by risk level. Claude Code reads it through an `@AGENTS.md` import in `CLAUDE.md`.
 - `templates/settings.json` – Claude Code permission deny examples. Deny rules match how a command is written; they are not a security boundary.

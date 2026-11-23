@@ -2,8 +2,8 @@
 
 [English](README.md)
 
-> **狀態：開發初期（共 10 個階段，目前是 P0）。** 目前只有專案骨架、共用契約和安全檢查。
-> 詳見 [roadmap](docs/roadmap.md)。
+> **狀態：開發初期（共 10 個階段，P1 已完成）。** 最精簡的端到端流程已經可以運作：
+> 任務 → worktree → 子代理 → gate → 合併 → scorecard。詳見 [roadmap](docs/roadmap.md)。
 
 AI coding agent 寫程式很快，但周圍的流程通常不透明：
 
@@ -27,6 +27,15 @@ AI coding agent 寫程式很快，但周圍的流程通常不透明：
 git clone <this repository>
 cd agentic-sdlc-kit
 npm test
+```
+
+想在一個用完即丟的示範專案上試跑整個流程，請照 [docs/demo.md](docs/demo.md)：
+
+```sh
+node tools/demo-setup.mjs ~/work/demo-api
+cd ~/work/demo-api
+node <kit>/bin/asdk.mjs task start DEMO-001 --type feature --risk low --estimate 6
+node <kit>/bin/asdk.mjs wt new DEMO-001 --slug due-date
 ```
 
 ## 模組

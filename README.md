@@ -2,8 +2,8 @@
 
 [繁體中文](README.zh-TW.md)
 
-> **Status: early development (phase P0 of 10).** Only the project skeleton, the
-> shared contracts and the safety checks exist so far. See the [roadmap](docs/roadmap.md).
+> **Status: early development (P1 of 10 done).** A minimal end-to-end slice works:
+> task → worktree → sub-agent → gate → merge → scorecard. See the [roadmap](docs/roadmap.md).
 
 AI coding agents can write code quickly, but the process around them is usually
 opaque: a planner that cannot see the source reviews claims it cannot check,
@@ -23,6 +23,15 @@ Requires Node.js 22 or newer and git. There are no dependencies to install.
 git clone <this repository>
 cd agentic-sdlc-kit
 npm test
+```
+
+To try the flow on a throw-away demo project, follow [docs/demo.md](docs/demo.md):
+
+```sh
+node tools/demo-setup.mjs ~/work/demo-api
+cd ~/work/demo-api
+node <kit>/bin/asdk.mjs task start DEMO-001 --type feature --risk low --estimate 6
+node <kit>/bin/asdk.mjs wt new DEMO-001 --slug due-date
 ```
 
 ## Modules

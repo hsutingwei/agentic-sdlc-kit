@@ -7,6 +7,7 @@ import { AsdkError } from '../core/errors.mjs';
 const COMMANDS = {
   project: { load: () => import('../collector/cli/project.mjs'), fn: 'runProject', help: 'register and list projects' },
   resolve: { load: () => import('../collector/cli/project.mjs'), fn: 'runResolve', help: 'show which project a path belongs to' },
+  task: { load: () => import('../collector/cli/task.mjs'), fn: 'runTask', help: 'start, verify and end tasks' },
 };
 
 function usage() {

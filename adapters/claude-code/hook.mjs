@@ -1,0 +1,113 @@
+// Claude Code hook entry: `asdk hook`, registered for every hook event.
+//
+// Reads the hook payload from stdin and records METADATA ONLY. Fields are
+// copied from an allowlist; fields that hold prompt text, tool input, tool
+// output or answers are reduced to their size. The hook never fails: any error
+// is written to collector-errors.log (without payload content) and the process
+// exits 0, so a recording problem can never block the agent.
+
+import { appendFileSync, mkdirSync } from 'node:fs';
+import path from 'node:path';
+import { dataPath } from '../../collector/lib/paths.mjs';
+import { resolveProject } from '../../collector/lib/registry.mjs';
+import { readWorktreeMarker } from '../../collector/lib/state.mjs';
+import { appendEvent, makeEvent } from '../../collector/lib/store.mjs';
+
+const EVENT_NAME = /^[A-Za-z][A-Za-z0-9_.:-]{0,63}$/;
+const ID = /^[A-Za-z0-9._-]{1,128}$/;
+
+// Copied as they are when they are short scalars.
+const SCALAR_FIELDS = ['tool_name', 'tool_use_id', 'prompt_id', 'permission_mode', 'source', 'reason', 'duration_ms', 'stop_hook_active'];
+
+// Reduced to a size: these carry content.
+const SIZE_FIELDS = {
+  prompt: 'prompt_chars',
+  tool_input: 'tool_input_bytes',
+  tool_response: 'tool_response_bytes',
+  last_assistant_message: 'last_message_chars',
+};
+
+const sizeOf = (value) => (typeof value === 'string' ? [...value].length : Buffer.byteLength(JSON.stringify(value) ?? '', 'utf8'));
+
+/** Maps a Claude Code hook payload to a kit event, or returns null when it cannot be attributed to an event name. */
+export function payloadToEvent(payload, { env = process.env, cwd = process.cwd(), now } = {}) {
+  if (!payload || typeof payload !== 'object') return null;
+  const name = payload.hook_event_name;
+  if (typeof name !== 'string' || !EVENT_NAME.test(name)) return null;
+
+  const data = {};
+  for (const key of SCALAR_FIELDS) {
+    const v = payload[key];
+    if (typeof v === 'number' || typeof v === 'boolean') data[key] = v;
+    else if (typeof v === 'string' && v.length <= 256) data[key] = v;
+  }
+  for (const [key, as] of Object.entries(SIZE_FIELDS)) {
+    if (payload[key] !== undefined && payload[key] !== null) data[as] = sizeOf(payload[key]);
+  }
+  if (payload.tool_input && typeof payload.tool_input === 'object' && typeof payload.tool_input.file_path === 'string') {
+    data.file_count = 1; // the path itself is not recorded
+  }
+
+  const where = typeof payload.cwd === 'string' && payload.cwd !== '' ? payload.cwd : cwd;
+  const project = resolveProject(where, { env });
+  const marker = project.project_id && project.worktree ? readWorktreeMarker(env, project.project_id, project.worktree) : null;
+
+  const agent = typeof payload.agent_id === 'string' && ID.test(payload.agent_id) ? { id: payload.agent_id } : undefined;
+  if (agent && typeof payload.agent_type === 'string' && payload.agent_type.length <= 100) agent.type = payload.agent_type;
+
+  return makeEvent(
+    {
+      source: 'hook',
+      event: name,
+      tool: 'claude-code',
+      session_id: typeof payload.session_id === 'string' && ID.test(payload.session_id) ? payload.session_id : undefined,
+      project_id: project.project_id,
+      project_source: project.project_source,
+      task_id: marker?.task_id,
+      worktree: project.worktree ?? undefined,
+      agent,
+      data: Object.keys(data).length ? data : undefined,
+    },
+    now,
+  );
+}
+
+function logError(env, message) {
+  try {
+    const file = dataPath(env, 'collector-errors.log');
+    mkdirSync(path.dirname(file), { recursive: true });
+    appendFileSync(file, `${new Date().toISOString()} hook: ${message}\n`);
+  } catch {
+    // Nowhere left to report; stay silent rather than disturb the agent.
+  }
+}
+
+async function readStdin() {
+  if (process.stdin.isTTY) return '';
+  let text = '';
+  for await (const chunk of process.stdin) text += chunk;
+  return text;
+}
+
+export async function runHook(_argv, { env, cwd }) {
+  try {
+    const raw = await readStdin();
+    let payload;
+    try {
+      payload = JSON.parse(raw);
+    } catch {
+      // The parser's own message can quote the input, so log a fixed text.
+      logError(env, `payload is not valid JSON (${raw.length} chars)`);
+      return 0;
+    }
+    const event = payloadToEvent(payload, { env, cwd });
+    if (!event) {
+      logError(env, 'payload has no usable hook_event_name');
+      return 0;
+    }
+    appendEvent(env, event, event.session_id ?? 'no-session');
+  } catch (err) {
+    logError(env, err instanceof Error ? err.message : 'unknown error');
+  }
+  return 0;
+}

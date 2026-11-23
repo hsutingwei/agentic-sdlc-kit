@@ -1,10 +1,11 @@
 // Creates a throw-away demo repository from examples/demo-api, outside the kit's
 // own repository, the way a user's real project would be set up.
 
-import { cpSync, existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { usageError } from '../../core/errors.mjs';
+import { copyDir } from '../../core/fs.mjs';
 import { git } from '../../core/git.mjs';
 import { registerProject } from '../../collector/lib/registry.mjs';
 
@@ -31,8 +32,7 @@ export function hookSettings() {
 export function setupDemo(env, { target, id = 'demo-api' }) {
   const dir = path.resolve(target);
   if (existsSync(dir) && readdirSync(dir).length > 0) throw usageError(`${dir} is not empty`);
-  mkdirSync(dir, { recursive: true });
-  cpSync(DEMO_TEMPLATE, dir, { recursive: true });
+  copyDir(DEMO_TEMPLATE, dir);
 
   const g = (...args) => git(args, { cwd: dir, env });
   g('init', '-q', '-b', 'main');

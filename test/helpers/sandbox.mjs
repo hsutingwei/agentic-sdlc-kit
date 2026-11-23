@@ -4,7 +4,8 @@
 // Directory names deliberately contain CJK characters and spaces: every path
 // handling bug on Windows or POSIX should surface in the ordinary test run.
 
-import { cpSync, mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { copyDir } from '../../core/fs.mjs';
 import { spawnSync } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
@@ -134,7 +135,7 @@ export const DEMO_TEMPLATE = fileURLToPath(new URL('../../examples/demo-api', im
 
 /** Copies examples/demo-api into `dir` as a git repository with main and dev; leaves dev checked out. */
 export function makeDemoRepo(sandbox, dir) {
-  cpSync(DEMO_TEMPLATE, dir, { recursive: true });
+  copyDir(DEMO_TEMPLATE, dir);
   git(sandbox, dir, 'init', '-q');
   git(sandbox, dir, 'add', '.');
   git(sandbox, dir, 'commit', '-q', '-m', 'chore: initial demo-api');

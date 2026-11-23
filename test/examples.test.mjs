@@ -10,7 +10,8 @@ const DEMO = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'exam
 
 test('demo-api passes its own test suite', (t) => {
   const sb = createSandbox(t, 'demo-suite');
-  const r = runNode('--test', [], { cwd: DEMO, env: sb.env });
+  // The default reporter differs between Node versions; ask for TAP explicitly.
+  const r = runNode('--test', ['--test-reporter=tap'], { cwd: DEMO, env: sb.env });
   assert.equal(r.status, 0, r.stdout + r.stderr);
   assert.match(r.stdout, /# pass [1-9]/);
   assert.match(r.stdout, /# fail 0/);

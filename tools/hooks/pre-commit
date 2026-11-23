@@ -1,0 +1,4 @@
+#!/bin/sh
+# Blocks the commit when staged content matches the private denylist.
+# Enable with: npm run hooks:install   (sets core.hooksPath to tools/hooks)
+exec node "$(dirname "$0")/../check-denylist.mjs" --staged

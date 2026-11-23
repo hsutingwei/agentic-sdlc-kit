@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "task_id": "DEMO-001",
+  "project_id": "demo-api",
+  "title": "Add due dates to todo items",
+  "goal": "Todo items accept an optional due date, and the list endpoint can return only overdue items.",
+  "type": "feature",
+  "risk": "low",
+  "assignment": { "role": "implementer", "model_tier": "standard", "isolation": "fresh" },
+  "scope": {
+    "allowed_paths": ["src/**", "test/**"],
+    "forbidden_paths": [".asdk/**", ".claude/**", "briefs/**"]
+  },
+  "acceptance_criteria": [
+    { "id": "AC1", "text": "POST /todos and PATCH /todos/:id accept an optional due_date in YYYY-MM-DD format; any other value returns 400." },
+    { "id": "AC2", "text": "GET /todos?overdue=true returns only items that are not done and whose due_date is before today (UTC)." },
+    { "id": "AC3", "text": "Items created without a due date have \"due_date\": null; all existing tests still pass." }
+  ],
+  "base_branch": "dev",
+  "estimate_hours": 6,
+  "context": {
+    "read_first": ["src/todos.mjs", "src/server.mjs", "test/todos.test.mjs"],
+    "notes": "Keep node:http only; no dependencies. Add tests for every acceptance criterion."
+  }
+}

@@ -58,7 +58,9 @@ export function createSandbox(t, label = 'sandbox') {
   const env = {};
   for (const [key, value] of Object.entries(process.env)) {
     const upper = key.toUpperCase();
-    if (LEAKY_GIT_VARS.has(upper) || upper.startsWith('AGENTIC_')) continue;
+    // NODE_TEST_CONTEXT is set by the outer `node --test`; a nested `node --test`
+    // that inherits it reports to the outer runner instead of printing results.
+    if (LEAKY_GIT_VARS.has(upper) || upper.startsWith('AGENTIC_') || upper === 'NODE_TEST_CONTEXT') continue;
     env[key] = value;
   }
   Object.assign(env, {

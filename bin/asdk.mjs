@@ -8,6 +8,7 @@ const COMMANDS = {
   project: { load: () => import('../collector/cli/project.mjs'), fn: 'runProject', help: 'register and list projects' },
   resolve: { load: () => import('../collector/cli/project.mjs'), fn: 'runResolve', help: 'show which project a path belongs to' },
   task: { load: () => import('../collector/cli/task.mjs'), fn: 'runTask', help: 'start, verify and end tasks' },
+  wt: { load: () => import('../orchestration/cli/wt.mjs'), fn: 'runWt', help: 'create and finish a task worktree' },
   gate: { load: () => import('../governance/gate/cli.mjs'), fn: 'runGateCommand', help: 'run a configured gate and record the result' },
   hook: { load: () => import('../adapters/claude-code/hook.mjs'), fn: 'runHook', help: 'Claude Code hook entry (reads the payload from stdin)', neverFail: true },
 };

@@ -1,0 +1,12 @@
+# orchestration
+
+Runs several tasks in parallel without them colliding, with the planner able
+to read the source it plans and reviews.
+
+- **P1** – `wt new` / `wt finish`: one git worktree per task, branched from `dev`, merged back only after G2.
+- **P7** –
+  - Planner workflow: write a `task-brief`, dispatch it to a sub-agent of the right model tier, check the returned `agent-report` against the diff and the gate summary.
+  - Worktree pool: a fixed number of slots (the WIP limit). A slot is reused only when it is clean and its branch is merged or explicitly abandoned; reuse is a plain `git switch`, never `reset --hard`. Dependencies are reinstalled only when the lockfile hash changes.
+  - Overlap warning when two active tasks declare the same paths.
+  - Dispatch guard (a hook) that asks the user before starting another sub-agent when the concurrency limit is reached, and a `budget status` command.
+  - Context isolation levels: `fresh` (new context, project rules) and `sterile` (only the brief's inputs).

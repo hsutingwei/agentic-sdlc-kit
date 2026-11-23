@@ -8,6 +8,7 @@ import { mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync } from 'nod
 import { spawnSync } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 // Variables a parent git process (for example a pre-commit hook that runs the
 // tests) would leak into children and redirect their git commands elsewhere.
@@ -104,6 +105,27 @@ export function run(command, args, { cwd, env, input } = {}) {
 /** Runs a Node script with the current Node binary. */
 export function runNode(script, args = [], options = {}) {
   return run(process.execPath, [script, ...args], options);
+}
+
+export const ASDK = fileURLToPath(new URL('../../bin/asdk.mjs', import.meta.url));
+
+/** Runs the asdk CLI with the sandbox environment. */
+export function runAsdk(sandbox, args, { cwd = sandbox.root, input, env = sandbox.env } = {}) {
+  return runNode(ASDK, args, { cwd, env, input });
+}
+
+/** Creates a git repository with one commit on main. */
+export function makeRepo(sandbox, dir, files = { 'README.md': '# demo\n' }) {
+  mkdirSync(dir, { recursive: true });
+  git(sandbox, dir, 'init', '-q');
+  for (const [rel, content] of Object.entries(files)) {
+    const file = path.join(dir, rel);
+    mkdirSync(path.dirname(file), { recursive: true });
+    writeFileSync(file, content);
+  }
+  git(sandbox, dir, 'add', '.');
+  git(sandbox, dir, 'commit', '-q', '-m', 'chore: initial commit');
+  return dir;
 }
 
 /** Runs git inside the sandbox and throws with its stderr when it fails. */

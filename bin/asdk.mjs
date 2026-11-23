@@ -1,0 +1,46 @@
+#!/usr/bin/env node
+// asdk - command line entry point of agentic-sdlc-kit.
+// Each command lives in its module; this file only dispatches.
+
+import { AsdkError } from '../core/errors.mjs';
+
+const COMMANDS = {
+  project: { load: () => import('../collector/cli/project.mjs'), fn: 'runProject', help: 'register and list projects' },
+  resolve: { load: () => import('../collector/cli/project.mjs'), fn: 'runResolve', help: 'show which project a path belongs to' },
+};
+
+function usage() {
+  const lines = ['usage: asdk <command> [options]', '', 'commands:'];
+  for (const [name, c] of Object.entries(COMMANDS)) lines.push(`  ${name.padEnd(10)}${c.help}`);
+  return lines.join('\n');
+}
+
+const [name, ...rest] = process.argv.slice(2);
+const ctx = {
+  env: process.env,
+  cwd: process.cwd(),
+  out: (line) => process.stdout.write(`${line}\n`),
+  err: (line) => process.stderr.write(`${line}\n`),
+};
+
+if (!name || name === 'help' || name === '--help' || name === '-h') {
+  ctx.out(usage());
+} else if (!Object.hasOwn(COMMANDS, name)) {
+  ctx.err(`asdk: unknown command "${name}"\n${usage()}`);
+  process.exitCode = 2;
+} else {
+  const command = COMMANDS[name];
+  try {
+    const mod = await command.load();
+    process.exitCode = (await mod[command.fn](rest, ctx)) ?? 0;
+  } catch (err) {
+    if (command.neverFail) {
+      process.exitCode = 0; // hooks must never block the agent tool
+    } else if (err instanceof AsdkError) {
+      ctx.err(`asdk ${name}: ${err.message}`);
+      process.exitCode = err.exitCode;
+    } else {
+      throw err;
+    }
+  }
+}

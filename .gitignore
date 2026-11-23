@@ -1,0 +1,15 @@
+node_modules/
+coverage/
+*.log
+
+# Local secrets never belong in the repository.
+.env
+.env.*
+!.env.example
+
+# Per-user Claude Code settings.
+.claude/settings.local.json
+
+# OS clutter.
+.DS_Store
+Thumbs.db

@@ -1,0 +1,16 @@
+{
+  "name": "agentic-sdlc-kit",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Make AI coding agent work governable, verifiable and measurable.",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node tools/run-tests.mjs",
+    "hooks:install": "git config core.hooksPath tools/hooks",
+    "validate": "node core/validate-cli.mjs"
+  }
+}

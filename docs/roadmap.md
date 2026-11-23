@@ -5,7 +5,7 @@ ends with `npm test` actually run and the result reported.
 
 | Phase | Scope | Status |
 |---|---|---|
-| P0 | Skeleton, test runner and sandbox, denylist pre-commit hook, CI with gitleaks, `core/` contracts and validator, ADR-0001, Claude Code behaviour spike | in progress |
+| P0 | Skeleton, test runner and sandbox, denylist pre-commit hook, CI with gitleaks, `core/` contracts and validator, ADR-0001, [Claude Code behaviour spike](spike/claude-code-behavior.md) | done; CI not yet run |
 | P1 | End-to-end slice on DEMO-001: `wt new` → sub-agent implements → G1 → `task verify` → merge to `dev` → `task end` → one scorecard row | |
 | P2 | Collector: project registry (worktree-aware), hook recording incl. `SubagentStart`/`SubagentStop`, `hooks install/uninstall` (byte-exact), `enable/disable`, `health` | |
 | P3 | Collector: task lifecycle CLI, lock files, multi-process contention test | |
@@ -27,5 +27,7 @@ phases deepen it.
 - **Efficiency score** – the baseline is a human estimate without AI, recorded at task start and never edited. Quality discounts apply: first-pass rate, rework, escalations, and escaped defects (a fix task links back with `--fixes`). Only `Complete` rows are scored, and the estimate's bias is a documented limitation.
 - **Parallel work** – a WIP limit, a "waiting for human" time metric, an overlap warning on declared paths, and G2 on the branch rebased onto the latest `dev`.
 - **Worktrees** – short slot names under a short, configurable root (Windows path length); dependencies reinstalled only when the lockfile hash changes; local files copied only from an explicit, empty-by-default allowlist; a pool of reusable slots (P7).
-- **Dispatch guard** – a Claude Code hook, not an MCP server: it is enforced, costs no tokens and reuses recorded events. A CLI serves queries. The quota data source is decided after the spike.
+- **Dispatch guard** – a Claude Code hook on `PreToolUse` for the `Agent` tool, not an MCP server: it is enforced, costs no tokens and reuses recorded events. A CLI serves queries.
+- **Quota data** – headless runs the kit launches record `rate_limit_event` from stream-json automatically; interactive sessions rely on `task snapshot`. See the [spike](spike/claude-code-behavior.md).
+- **Headless runs** – launched with a scrubbed environment; `sterile` means `--safe-mode --no-session-persistence --strict-mcp-config` with a restricted tool list, outside the repository.
 - **Licence holder** – "agentic-sdlc-kit contributors".

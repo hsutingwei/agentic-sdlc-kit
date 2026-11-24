@@ -6,9 +6,10 @@
 //   solve           apply the task's reference solution
 //   break-then-fix  first attempt breaks a unit test; the retry applies the solution
 //   break           every attempt breaks a unit test
+//   shallow         a change the gates accept but the hidden tests do not
 
 import { execFileSync } from 'node:child_process';
-import { rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { applyOverlay, loadTask } from '../../tools/experiment/lib/catalogue.mjs';
 
@@ -21,7 +22,9 @@ const cwd = process.cwd();
 const git = (...a) => execFileSync('git', a, { cwd, stdio: 'pipe' });
 const broken = path.join(cwd, 'test', 'unit', 'broken.test.mjs');
 
-if (mode === 'break' || (mode === 'break-then-fix' && !retry)) {
+if (mode === 'shallow') {
+  appendFileSync(path.join(cwd, 'src', 'todos.mjs'), '// looked at the task\n');
+} else if (mode === 'break' || (mode === 'break-then-fix' && !retry)) {
   writeFileSync(broken, "import { test } from 'node:test';\ntest('x', () => { throw new Error('not yet'); });\n");
 } else {
   rmSync(broken, { force: true });

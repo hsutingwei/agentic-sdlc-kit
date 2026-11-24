@@ -30,46 +30,55 @@ const TASK_ID = /^[A-Z][A-Z0-9]*-[0-9]+$/;
 /**
  * Folds events into task records, keyed by task id.
  * Records keep raw facts plus data-quality flags; they are not the contract shape (see toContract).
+ *
+ * Starts are collected first, so a hook event, written to another stream by a
+ * process whose clock ran a few milliseconds behind (ADR-0004), still belongs to
+ * its task. Task records written before their start (same stream, so the order is
+ * real) stay orphans.
  */
 export function deriveTasks(events) {
   const tasks = new Map();
   const orphans = [];
+  const startAt = new Map(); // task id -> index of its first start
+  events.forEach((e, i) => {
+    if (e.task_id && e.event === 'task.start' && !startAt.has(e.task_id)) startAt.set(e.task_id, i);
+  });
   for (const e of events) {
-    if (!e.task_id) continue;
-    let t = tasks.get(e.task_id);
-    if (e.event === 'task.start') {
-      if (t) {
-        t.flags.add('duplicate_task_start');
-        continue;
-      }
-      const d = e.data ?? {};
-      t = {
-        task_id: e.task_id,
-        project_id: e.project_id ?? null,
-        type: d.type,
-        risk: d.risk,
-        title: d.title,
-        estimate_hours: d.estimate_hours,
-        fixes: d.fixes ? String(d.fixes).split(',') : [],
-        status: 'active',
-        started_at: e.ts,
-        ended_at: undefined,
-        outcome: undefined,
-        completed_by: undefined,
-        branch: undefined,
-        worktree: undefined,
-        verifications: [],
-        gate_runs: [],
-        blocks: [], // { from, to?, reason, waiting_on? }
-        escalations: [], // { ts, kind, reason }
-        sessions: new Set(),
-        agents: new Set(),
-        flags: new Set(),
-      };
-      tasks.set(e.task_id, t);
+    if (!e.task_id || e.event !== 'task.start') continue;
+    const existing = tasks.get(e.task_id);
+    if (existing) {
+      existing.flags.add('duplicate_task_start');
       continue;
     }
-    if (!t) {
+    const d = e.data ?? {};
+    tasks.set(e.task_id, {
+      task_id: e.task_id,
+      project_id: e.project_id ?? null,
+      type: d.type,
+      risk: d.risk,
+      title: d.title,
+      estimate_hours: d.estimate_hours,
+      fixes: d.fixes ? String(d.fixes).split(',') : [],
+      status: 'active',
+      started_at: e.ts,
+      ended_at: undefined,
+      outcome: undefined,
+      completed_by: undefined,
+      branch: undefined,
+      worktree: undefined,
+      verifications: [],
+      gate_runs: [],
+      blocks: [], // { from, to?, reason, waiting_on? }
+      escalations: [], // { ts, kind, reason }
+      sessions: new Set(),
+      agents: new Set(),
+      flags: new Set(),
+    });
+  }
+  for (const [i, e] of events.entries()) {
+    if (!e.task_id || e.event === 'task.start') continue;
+    const t = tasks.get(e.task_id);
+    if (!t || (e.source !== 'hook' && i < startAt.get(e.task_id))) {
       orphans.push(e);
       continue;
     }

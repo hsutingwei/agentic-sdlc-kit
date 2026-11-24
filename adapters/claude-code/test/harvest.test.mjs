@@ -133,5 +133,6 @@ test('task end harvests the task sessions and only warns when that fails', (t) =
   r = runAsdk(sb, ['task', 'end', 'DEMO-002', '--outcome', 'abandoned']);
   assert.equal(r.status, 0, r.stderr);
   assert.match(r.stdout, /ended DEMO-002/);
-  assert.match(r.stderr, /warning: could not harvest/);
+  assert.match(r.stderr, /warning: could not harvest/, `stdout: ${r.stdout}
+stderr: ${r.stderr}`);
 });

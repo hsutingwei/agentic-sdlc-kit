@@ -166,3 +166,11 @@ test('asdk task update and escalate', (t) => {
   assert.equal(runAsdk(sb, ['task', 'update', 'DEMO-001', '--state', 'resumed']).status, 2);
   assert.equal(loadTasks(sb.env).get('DEMO-001').escalations[0].kind, 'repeated_failure');
 });
+
+test('an event from a clock a few milliseconds behind still belongs to its task', () => {
+  const start = makeEvent({ source: 'cli', event: 'task.start', task_id: 'DEMO-001', project_id: 'demo-api', data: { type: 'feature', risk: 'low' } }, new Date('2026-11-02T09:00:00.010Z'));
+  const hook = makeEvent({ source: 'hook', event: 'Stop', session_id: 's-1', task_id: 'DEMO-001', project_id: 'demo-api' }, new Date('2026-11-02T09:00:00.004Z'));
+  const { tasks, orphans } = deriveTasks([hook, start]);
+  assert.deepEqual([...tasks.get('DEMO-001').sessions], ['s-1']);
+  assert.deepEqual(orphans, []);
+});

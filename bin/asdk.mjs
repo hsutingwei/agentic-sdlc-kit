@@ -8,6 +8,7 @@ const COMMANDS = {
   project: { load: () => import('../collector/cli/project.mjs'), fn: 'runProject', help: 'register and list projects' },
   resolve: { load: () => import('../collector/cli/project.mjs'), fn: 'runResolve', help: 'show which project a path belongs to' },
   session: { load: () => import('../collector/cli/session.mjs'), fn: 'runSession', help: 'list sessions and override their project' },
+  health: { load: () => import('../collector/cli/health.mjs'), fn: 'runHealth', help: 'check that recording works on this machine' },
   enable: { load: () => import('../collector/cli/recording.mjs'), fn: 'runEnable', help: 'resume recording hook events' },
   disable: { load: () => import('../collector/cli/recording.mjs'), fn: 'runDisable', help: 'pause recording without uninstalling hooks' },
   task: { load: () => import('../collector/cli/task.mjs'), fn: 'runTask', help: 'start, verify and end tasks' },

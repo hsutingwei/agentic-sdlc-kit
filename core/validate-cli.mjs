@@ -27,7 +27,7 @@ const [contract, file] = positional;
 
 let text;
 try {
-  text = readFileSync(file, 'utf8').replace(/^﻿/, '');
+  text = readFileSync(file, 'utf8').replace(/^\uFEFF/, '');
 } catch (err) {
   console.error(`validate: cannot read ${file}: ${err.message}`);
   process.exit(2);

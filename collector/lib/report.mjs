@@ -260,7 +260,7 @@ const csvCell = (v, masks) => {
 /** CSV with a UTF-8 BOM so spreadsheet tools read CJK text correctly. */
 export function toCsv(rows, columns = COLUMNS, masks = []) {
   const lines = [columns.join(','), ...rows.map((r) => columns.map((c) => csvCell(r[c], masks)).join(','))];
-  return `﻿${lines.join('\r\n')}\r\n`;
+  return `\uFEFF${lines.join('\r\n')}\r\n`;
 }
 
 const md = (v) => (v === null || v === undefined || v === '' ? '–' : String(v).replace(/\|/g, '\\|'));

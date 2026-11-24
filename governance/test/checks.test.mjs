@@ -76,7 +76,7 @@ test('deny-sync requires nested settings to repeat the root deny rules', (t) => 
   assert.equal(bad.status, 1);
   assert.match(bad.output, /packages\/子 專案\/\.claude\/settings\.json lacks 2 root deny rule\(s\): Bash\(git push \*\), Bash\(git reset --hard \*\)/);
 
-  writeFileSync(path.join(nested, 'settings.json'), `﻿${JSON.stringify({ permissions: { deny: [...root.permissions.deny, 'Bash(curl *)'] } })}`);
+  writeFileSync(path.join(nested, 'settings.json'), `\uFEFF${JSON.stringify({ permissions: { deny: [...root.permissions.deny, 'Bash(curl *)'] } })}`);
   commitAll(sb, repo, 'chore: sync nested settings');
   assert.equal(denySyncCheck(ctx).status, 0);
 

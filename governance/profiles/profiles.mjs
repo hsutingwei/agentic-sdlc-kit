@@ -27,7 +27,7 @@ const OVERRIDABLE = ['tier', 'effort', 'isolation'];
 
 function readJson(file, label) {
   try {
-    return JSON.parse(readFileSync(file, 'utf8').replace(/^﻿/, ''));
+    return JSON.parse(readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
   } catch (err) {
     throw usageError(`${label} is not valid JSON: ${err.message}`);
   }

@@ -33,7 +33,7 @@ export function loadGateConfig(top) {
   if (!existsSync(file)) throw usageError(`no gate configuration at ${CONFIG_FILE}`);
   let config;
   try {
-    config = JSON.parse(readFileSync(file, 'utf8').replace(/^﻿/, ''));
+    config = JSON.parse(readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
   } catch (err) {
     throw usageError(`${CONFIG_FILE} is not valid JSON: ${err.message}`);
   }

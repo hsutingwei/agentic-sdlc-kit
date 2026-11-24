@@ -67,7 +67,7 @@ export function referencesCheck({ cwd, env }) {
 }
 
 function denyRules(cwd, file) {
-  const value = JSON.parse(readFileSync(path.join(cwd, file), 'utf8').replace(/^﻿/, ''));
+  const value = JSON.parse(readFileSync(path.join(cwd, file), 'utf8').replace(/^\uFEFF/, ''));
   const deny = value?.permissions?.deny ?? [];
   if (!Array.isArray(deny)) throw new Error('"permissions.deny" is not a list');
   return deny;

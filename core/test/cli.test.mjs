@@ -39,7 +39,7 @@ test('an invalid file exits 1 and names the failing path', (t) => {
 
 test('JSONL errors carry line numbers; blank lines and a BOM are ignored', (t) => {
   const { sb, write } = setup(t);
-  const lines = ['﻿' + JSON.stringify(event), '', JSON.stringify({ ...event, ts: 'yesterday' }), '{not json'];
+  const lines = ['\uFEFF' + JSON.stringify(event), '', JSON.stringify({ ...event, ts: 'yesterday' }), '{not json'];
   const file = write('events.jsonl', lines.join('\r\n'));
   const r = runNode(CLI, ['event', file, '--jsonl'], { env: sb.env });
   assert.equal(r.status, 1);

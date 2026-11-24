@@ -111,7 +111,7 @@ test('headline, coverage, verifications and usage tables', () => {
 test('CSV and markdown: BOM, escaping, masking and every flag explained', () => {
   const r = report();
   const csv = toCsv(r.rows, COLUMNS, ['overdue']);
-  assert.ok(csv.startsWith('﻿'));
+  assert.ok(csv.startsWith('\uFEFF'));
   const lines = csv.slice(1).split('\r\n');
   assert.equal(lines[0], COLUMNS.join(','));
   assert.match(lines[1], /^DEMO-001,demo-api,"Due dates, ""\[masked\]"" filter",feature,/);

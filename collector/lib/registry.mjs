@@ -23,7 +23,7 @@ export function loadConfig(env = process.env) {
   if (!existsSync(file)) return { schema_version: 1, projects: [] };
   let config;
   try {
-    config = JSON.parse(readFileSync(file, 'utf8').replace(/^﻿/, ''));
+    config = JSON.parse(readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
   } catch (err) {
     // Never fall back to an empty config: a later save would erase the user's projects.
     throw usageError(`${file} is not valid JSON (${err.message}); fix it by hand`);

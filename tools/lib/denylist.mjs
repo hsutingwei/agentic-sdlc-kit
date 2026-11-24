@@ -47,7 +47,7 @@ export function parseDenylist(text) {
   const rules = [];
   const seen = new Set();
   text
-    .replace(/^﻿/, '')
+    .replace(/^\uFEFF/, '')
     .split(/\r?\n/)
     .forEach((raw, index) => {
       let body = raw.trim();

@@ -7,7 +7,7 @@ import { changePlan } from '../../../collector/lib/quota.mjs';
 import { applyToAgents, frontmatter, readField, setField } from '../agents.mjs';
 
 test('frontmatter fields are read and set without touching other bytes', () => {
-  const text = '﻿---\r\nname: reviewer\r\nmodel: "sonnet"  \r\ntools: Read\r\n---\r\n\r\nBody: model: not this one.\r\n';
+  const text = '\uFEFF---\r\nname: reviewer\r\nmodel: "sonnet"  \r\ntools: Read\r\n---\r\n\r\nBody: model: not this one.\r\n';
   const f = frontmatter(text);
   assert.equal(readField(f.text, 'name'), 'reviewer');
   assert.equal(readField(f.text, 'model'), 'sonnet');
@@ -16,7 +16,7 @@ test('frontmatter fields are read and set without touching other bytes', () => {
   next = setField(next, 'effort', 'high', f.eol);
   assert.equal(
     text.slice(0, f.start) + next + text.slice(f.end),
-    '﻿---\r\nname: reviewer\r\nmodel: opus\r\ntools: Read\r\neffort: high\r\n---\r\n\r\nBody: model: not this one.\r\n',
+    '\uFEFF---\r\nname: reviewer\r\nmodel: opus\r\ntools: Read\r\neffort: high\r\n---\r\n\r\nBody: model: not this one.\r\n',
   );
   assert.equal(frontmatter('# no frontmatter\n'), null);
 });

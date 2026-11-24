@@ -29,7 +29,7 @@ export function loadRiskPaths(top) {
   };
   let config;
   try {
-    config = JSON.parse(readFileSync(file, 'utf8').replace(/^﻿/, ''));
+    config = JSON.parse(readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
   } catch (err) {
     fail(`not valid JSON: ${err.message}`);
   }

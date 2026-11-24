@@ -39,7 +39,7 @@ const REQUEST_TIMEOUT_MS = 10000;
 
 const readJson = (file, label) => {
   try {
-    return JSON.parse(readFileSync(file, 'utf8').replace(/^﻿/, ''));
+    return JSON.parse(readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
   } catch (err) {
     throw usageError(`${label} is not valid JSON: ${err.message}`);
   }

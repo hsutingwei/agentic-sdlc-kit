@@ -10,7 +10,7 @@ const AGENTS_DIR = path.join('.claude', 'agents');
 
 /** The frontmatter block of a Markdown file: { start, end, text, eol } or null. */
 export function frontmatter(text) {
-  const m = /^(﻿?)---(\r?\n)([\s\S]*?)\r?\n---(\r?\n|$)/.exec(text);
+  const m = /^(\uFEFF?)---(\r?\n)([\s\S]*?)\r?\n---(\r?\n|$)/.exec(text);
   if (!m) return null;
   const start = m[1].length + 3 + m[2].length;
   return { start, end: start + m[3].length, text: m[3], eol: m[2] };

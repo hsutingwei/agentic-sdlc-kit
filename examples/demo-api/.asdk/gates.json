@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "runner_id": "local",
+  "integration_branch": "dev",
+  "gates": {
+    "G1": {
+      "description": "Fast gate: syntax check and unit tests.",
+      "verifies": "unit",
+      "steps": [
+        { "name": "syntax check", "kind": "lint", "builtin": "syntax-check" },
+        { "name": "unit tests", "kind": "unit", "run": ["node", "--test"] }
+      ]
+    }
+  }
+}

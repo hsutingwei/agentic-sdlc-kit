@@ -2,8 +2,9 @@
 
 [English](README.md)
 
-> **狀態：開發初期（共 10 個階段，目前是 P0）。** 目前只有專案骨架、共用契約和安全檢查。
-> 詳見 [roadmap](docs/roadmap.md)。
+> **狀態：v0.1（共 10 個階段，P5 已完成）。** 最精簡的端到端流程已經可以運作：
+> 任務 → worktree → 子代理 → gate → 合併 → scorecard；Claude Code 的 hooks 也能安裝，
+> 並且移除後不留痕跡。詳見 [roadmap](docs/roadmap.md)。
 
 AI coding agent 寫程式很快，但周圍的流程通常不透明：
 
@@ -29,12 +30,36 @@ cd agentic-sdlc-kit
 npm test
 ```
 
+想在一個用完即丟的示範專案上試跑整個流程，請照 [docs/demo.md](docs/demo.md)：
+
+```sh
+node tools/demo-setup.mjs ~/work/demo-api
+cd ~/work/demo-api
+node <kit>/bin/asdk.mjs task start DEMO-001 --type feature --risk low --estimate 6
+node <kit>/bin/asdk.mjs wt new DEMO-001 --slug due-date
+```
+
+### 記錄你自己的 Claude Code session
+
+```sh
+node <kit>/bin/asdk.mjs project add demo-api ~/work/demo-api
+node <kit>/bin/asdk.mjs hooks install     # 先備份，再修改 ~/.claude/settings.json
+node <kit>/bin/asdk.mjs health            # 檢查設定，並實際執行一次 hook 計時
+node <kit>/bin/asdk.mjs usage --task DEMO-001   # 依模型和子代理類型列出 token 用量
+node <kit>/bin/asdk.mjs quota status      # 目前方案和最新的額度快照
+node <kit>/bin/asdk.mjs disable           # 暫停紀錄；enable 恢復
+node <kit>/bin/asdk.mjs hooks uninstall   # 還原成原本的位元組
+```
+
+只記錄中繼資料（事件名稱、工具名稱、大小、id），不記錄 prompt 內文、檔案內容或路徑。
+資料存在 `~/.agentic-metrics/`。
+
 ## 模組
 
 | 模組 | 用途 | 階段 |
 |---|---|---|
-| [`core/`](core/) | 所有模組共用的契約（任務、任務簡報、agent 報告、gate 結果、事件），以及不依賴第三方套件的驗證器 | P0 ✅ |
-| [`collector/`](collector/) | 記錄每個任務從開始到驗收的過程：hook 事件、任務生命週期、token 用量、報表 | P1–P5 |
+| [`core/`](core/) | 所有模組共用的契約（任務、任務簡報、agent 報告、gate 結果、事件、token 用量），以及不依賴第三方套件的驗證器 | P0 ✅ |
+| [`collector/`](collector/) | 記錄每個任務從開始到驗收的過程：hook 事件、任務生命週期、token 用量、報表、push 檢查 | P1–P5 ✅ |
 | [`governance/`](governance/) | agent 指令範本、權限範例、依風險分級的關卡（G1/G2/G3） | P6 |
 | [`orchestration/`](orchestration/) | 指揮官流程、依模型等級派工給子代理、平行開發用的 worktree 池 | P1、P7 |
 | [`skill-regression/`](skill-regression/) | 用植入缺陷的案例，對 reviewer agent 和 skill 做回歸測試 | P8 |
@@ -43,7 +68,21 @@ npm test
 
 ## 範例報表
 
-_待補（P5）：由 `tools/make-sample.mjs` 從虛構資料產生的表格。_
+取自 [examples/sample-report](examples/sample-report/)，是 `tools/make-sample.mjs` 用**虛構**資料、
+透過本工具自己的報表程式產生的（12 列中列出 5 列）：
+
+> **3.31×** over 9 Complete task(s): 30.1 h of quality-weighted estimated work (7 accepted) for 9.09 human hours. Rejected and abandoned tasks count their hours and earn nothing.
+
+| Task | Project | Outcome | Lead (h) | AI (h) | Human (h) | Waiting on human (h) | Estimate (h) | Efficiency | Checks | First pass | Escalations | Output tokens | Data quality |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| DEMO-001 | demo-api | accepted | 4 | 1.17 | 0.92 | – | 6 | 6.52 × 0.6 = 3.91 | 3 | no | 0 | 3,711 | Complete |
+| DEMO-003 | demo-web | accepted | 6 | 2.17 | 1.92 | – | 8 | 4.17 × 0.8 = 3.33 | 4 | no | 1 | 11,645 | Complete |
+| DEMO-007 | demo-web | rejected | 3.33 | 1.33 | 1.08 | – | 3 | 0 | 1 | yes | 0 | 9,078 | Complete |
+| DEMO-009 | demo-web | accepted | 1 | 0.25 | 0.25 | – | 1 | 4 | 2 | yes | 0 | 0 | Partial |
+| DEMO-011 | demo-web | deferred | 2 | 0.83 | 0.33 | – | 5 | – | 0 | – | 0 | 9,606 | Missing |
+
+每一列都標示資料品質；只有 `Complete` 的列會計入總效率。
+定義與限制見 [docs/metrics.md](docs/metrics.md)。
 
 ## 設計原則
 
@@ -55,7 +94,8 @@ _待補（P5）：由 `tools/make-sample.mjs` 從虛構資料產生的表格。_
 
 ## 安全地參與開發
 
-commit 會比對一份放在 **repo 以外** 的私人關鍵字清單：
+commit 會比對一份放在 **repo 以外** 的私人關鍵字清單
+（`npm run hooks:install` 安裝的是這個 git hook，和 `asdk hooks install` 無關）：
 
 ```sh
 npm run hooks:install

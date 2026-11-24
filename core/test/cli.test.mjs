@@ -63,5 +63,5 @@ test('--list prints the contract names', (t) => {
   const { sb } = setup(t);
   const r = runNode(CLI, ['--list'], { env: sb.env });
   assert.equal(r.status, 0);
-  assert.deepEqual(r.stdout.trim().split(/\r?\n/), ['agent-report', 'event', 'gate-summary', 'task', 'task-brief']);
+  assert.deepEqual(r.stdout.trim().split(/\r?\n/), ['agent-report', 'event', 'gate-summary', 'task', 'task-brief', 'usage']);
 });

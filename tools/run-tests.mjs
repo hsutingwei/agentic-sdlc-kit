@@ -12,7 +12,7 @@
 import { readdirSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -48,7 +48,18 @@ if (files.length === 0) {
   process.exit(1);
 }
 
-const result = spawnSync(process.execPath, ['--test', ...files], { cwd: ROOT, stdio: 'inherit' });
+// On GitHub Actions, also emit failures as annotations (readable without signing in).
+const reporters =
+  process.env.GITHUB_ACTIONS === 'true'
+    ? [
+        '--test-reporter=spec',
+        '--test-reporter-destination=stdout',
+        `--test-reporter=${pathToFileURL(path.join(ROOT, 'tools', 'gha-reporter.mjs')).href}`,
+        '--test-reporter-destination=stdout',
+      ]
+    : [];
+
+const result = spawnSync(process.execPath, ['--test', ...reporters, ...files], { cwd: ROOT, stdio: 'inherit' });
 if (result.error) {
   console.error(`run-tests: could not start node: ${result.error.message}`);
   process.exit(1);

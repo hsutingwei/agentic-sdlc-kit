@@ -1,0 +1,14 @@
+{
+  "name": "demo-api",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Fictional todo-list REST API used to demonstrate agentic-sdlc-kit.",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/server.mjs",
+    "test": "node --test"
+  }
+}

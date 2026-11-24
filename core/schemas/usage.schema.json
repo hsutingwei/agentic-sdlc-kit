@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:agentic-sdlc-kit:schema:usage:1",
+  "title": "Usage",
+  "description": "Token usage of one agent session, harvested from the tool's own transcripts. Derived data: it can be deleted and rebuilt, so it lives outside the append-only event log. Numbers, model names, ids and times only: no text, no tool input, no paths.",
+  "type": "object",
+  "required": ["schema_version", "tool", "session_id", "tool_versions", "sources", "messages", "tool_results"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": 1 },
+    "tool": { "$ref": "#/$defs/tool_id" },
+    "session_id": { "type": "string", "pattern": "^[A-Za-z0-9._-]+$", "maxLength": 128 },
+    "tool_versions": {
+      "description": "Versions of the agent tool seen in the transcripts, so a format change can be traced.",
+      "type": "array",
+      "items": { "type": "string", "minLength": 1, "maxLength": 32 },
+      "uniqueItems": true
+    },
+    "sources": {
+      "description": "One entry per transcript read: the main session or one sub-agent.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["kind", "lines", "bad_lines", "unparsed"],
+        "additionalProperties": false,
+        "properties": {
+          "kind": { "enum": ["main", "subagent"] },
+          "agent_id": { "$ref": "#/$defs/agent_id" },
+          "agent_type": { "type": "string", "minLength": 1, "maxLength": 100 },
+          "model": { "type": "string", "minLength": 1, "maxLength": 100 },
+          "lines": { "type": "integer", "minimum": 0 },
+          "bad_lines": { "description": "Lines that were not JSON.", "type": "integer", "minimum": 0 },
+          "unparsed": { "description": "Response records without the expected fields: a sign the transcript format changed.", "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "messages": {
+      "description": "One entry per API response, de-duplicated.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "ts", "model", "input_tokens", "output_tokens", "cache_write_tokens", "cache_read_tokens"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "description": "A hash of the response and request ids.", "type": "string", "pattern": "^[0-9a-f]{20}$" },
+          "ts": { "$ref": "#/$defs/timestamp" },
+          "model": { "type": "string", "minLength": 1, "maxLength": 100 },
+          "effort": { "type": "string", "pattern": "^[a-z]+$", "maxLength": 16 },
+          "agent_id": { "$ref": "#/$defs/agent_id" },
+          "input_tokens": { "type": "integer", "minimum": 0 },
+          "output_tokens": { "type": "integer", "minimum": 0 },
+          "cache_write_tokens": { "type": "integer", "minimum": 0 },
+          "cache_read_tokens": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "tool_results": {
+      "description": "Tool results as a count and a total size; their content is never kept.",
+      "type": "object",
+      "required": ["count", "bytes"],
+      "additionalProperties": false,
+      "properties": {
+        "count": { "type": "integer", "minimum": 0 },
+        "bytes": { "type": "integer", "minimum": 0 }
+      }
+    }
+  },
+  "$defs": {
+    "tool_id": {
+      "description": "The agent tool that produced the record, for example claude-code.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "maxLength": 64
+    },
+    "agent_id": { "type": "string", "pattern": "^[A-Za-z0-9._:-]+$", "maxLength": 128 },
+    "timestamp": { "type": "string", "format": "date-time" }
+  }
+}

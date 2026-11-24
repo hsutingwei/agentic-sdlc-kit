@@ -5,9 +5,11 @@
 // handling bug on Windows or POSIX should surface in the ordinary test run.
 
 import { mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { copyDir } from '../../core/fs.mjs';
 import { spawnSync } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 // Variables a parent git process (for example a pre-commit hook that runs the
 // tests) would leak into children and redirect their git commands elsewhere.
@@ -57,7 +59,9 @@ export function createSandbox(t, label = 'sandbox') {
   const env = {};
   for (const [key, value] of Object.entries(process.env)) {
     const upper = key.toUpperCase();
-    if (LEAKY_GIT_VARS.has(upper) || upper.startsWith('AGENTIC_')) continue;
+    // NODE_TEST_CONTEXT is set by the outer `node --test`; a nested `node --test`
+    // that inherits it reports to the outer runner instead of printing results.
+    if (LEAKY_GIT_VARS.has(upper) || upper.startsWith('AGENTIC_') || upper === 'NODE_TEST_CONTEXT') continue;
     env[key] = value;
   }
   Object.assign(env, {
@@ -104,6 +108,39 @@ export function run(command, args, { cwd, env, input } = {}) {
 /** Runs a Node script with the current Node binary. */
 export function runNode(script, args = [], options = {}) {
   return run(process.execPath, [script, ...args], options);
+}
+
+export const ASDK = fileURLToPath(new URL('../../bin/asdk.mjs', import.meta.url));
+
+/** Runs the asdk CLI with the sandbox environment. */
+export function runAsdk(sandbox, args, { cwd = sandbox.root, input, env = sandbox.env } = {}) {
+  return runNode(ASDK, args, { cwd, env, input });
+}
+
+/** Creates a git repository with one commit on main. */
+export function makeRepo(sandbox, dir, files = { 'README.md': '# demo\n' }) {
+  mkdirSync(dir, { recursive: true });
+  git(sandbox, dir, 'init', '-q');
+  for (const [rel, content] of Object.entries(files)) {
+    const file = path.join(dir, rel);
+    mkdirSync(path.dirname(file), { recursive: true });
+    writeFileSync(file, content);
+  }
+  git(sandbox, dir, 'add', '.');
+  git(sandbox, dir, 'commit', '-q', '-m', 'chore: initial commit');
+  return dir;
+}
+
+export const DEMO_TEMPLATE = fileURLToPath(new URL('../../examples/demo-api', import.meta.url));
+
+/** Copies examples/demo-api into `dir` as a git repository with main and dev; leaves dev checked out. */
+export function makeDemoRepo(sandbox, dir) {
+  copyDir(DEMO_TEMPLATE, dir);
+  git(sandbox, dir, 'init', '-q');
+  git(sandbox, dir, 'add', '.');
+  git(sandbox, dir, 'commit', '-q', '-m', 'chore: initial demo-api');
+  git(sandbox, dir, 'switch', '-q', '-c', 'dev');
+  return dir;
 }
 
 /** Runs git inside the sandbox and throws with its stderr when it fails. */

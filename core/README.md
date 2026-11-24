@@ -8,7 +8,8 @@ Contracts shared by every module, and a validator that needs nothing but Node.
 | [`task-brief`](schemas/task-brief.schema.json) | the planner | the dispatched agent (its only input), the reviewer |
 | [`agent-report`](schemas/agent-report.schema.json) | any agent, any tool | the planner, which checks it against git and gate results |
 | [`gate-summary`](schemas/gate-summary.schema.json) | gates (`summary.json`) | collector, push check, planner |
-| [`event`](schemas/event.schema.json) | hooks, CLI, harvest, gates | collector |
+| [`event`](schemas/event.schema.json) | hooks, CLI, gates | collector |
+| [`usage`](schemas/usage.schema.json) | adapters (harvest from transcripts) | collector (`asdk usage`, reports) |
 
 The schemas are standard JSON Schema 2020-12, so other tools can validate them
 with any validator. Valid examples live in [`test/fixtures/`](test/fixtures/).
@@ -38,6 +39,12 @@ skipped unknown keywords would make a contract look stricter than it is.
 
 Because references are local only, definitions shared between schemas are
 repeated in each file; a test fails if any copy drifts.
+
+## Shared helpers
+
+- `git.mjs` – shell-free git calls (`git`, `tryGit`, `repoInfo`, `headSha`, `isClean`).
+- `errors.mjs` – `AsdkError` with an exit code: 1 when a rule or check says no, 2 for usage or configuration problems.
+- `cli.mjs` – argument parsing for the `asdk` commands, built on `node:util` `parseArgs`.
 
 ## Rules the schemas cannot express
 

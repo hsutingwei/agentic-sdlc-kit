@@ -5,6 +5,9 @@
   "description": "Make AI coding agent work governable, verifiable and measurable.",
   "type": "module",
   "license": "MIT",
+  "bin": {
+    "asdk": "bin/asdk.mjs"
+  },
   "engines": {
     "node": ">=22"
   },

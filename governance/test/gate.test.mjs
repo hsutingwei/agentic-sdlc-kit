@@ -65,14 +65,14 @@ test('G2 adds the integration tests and G3 refuses an unclean tree', (t) => {
   const { sb, repo } = setup(t, 'gate-g2g3');
   const g2 = runGate(sb.env, { gate: 'G2', cwd: repo }).summary;
   assert.equal(g2.result, 'pass', JSON.stringify(g2.steps));
-  assert.deepEqual(g2.steps.map((s) => s.name), ['syntax check', 'unit tests', 'integration tests']);
+  assert.deepEqual(g2.steps.map((s) => s.name), ['syntax check', 'agent references', 'deny rules in sync', 'unit tests', 'integration tests']);
   assert.equal(runGate(sb.env, { gate: 'G3', cwd: repo }).summary.result, 'pass');
 
   // An untracked file is enough: G3 verifies only what is committed.
   writeFileSync(path.join(repo, '筆記 草稿.txt'), 'not committed\n');
   const { summary, outputs } = runGate(sb.env, { gate: 'G3', cwd: repo });
   assert.equal(summary.result, 'fail');
-  assert.deepEqual(summary.steps.map((s) => s.result), ['fail', 'skipped', 'skipped', 'skipped']);
+  assert.deepEqual(summary.steps.map((s) => s.result), ['fail', 'skipped', 'skipped', 'skipped', 'skipped', 'skipped']);
   assert.match(outputs['clean tree'], /1 uncommitted or untracked file/);
 
   // A failing HTTP test fails G2 but not G1.

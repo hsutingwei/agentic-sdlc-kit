@@ -12,10 +12,12 @@
       ]
     },
     "G2": {
-      "description": "Full gate: G1 plus the HTTP integration tests.",
+      "description": "Full gate: G1 plus agent configuration checks and the HTTP integration tests.",
       "verifies": "integration",
       "steps": [
         { "name": "syntax check", "kind": "lint", "builtin": "syntax-check" },
+        { "name": "agent references", "kind": "static", "builtin": "references" },
+        { "name": "deny rules in sync", "kind": "static", "builtin": "deny-sync" },
         { "name": "unit tests", "kind": "unit", "run": ["node", "--test", "test/unit/**/*.test.mjs"] },
         { "name": "integration tests", "kind": "integration", "run": ["node", "--test", "test/integration/**/*.test.mjs"] }
       ]
@@ -25,6 +27,8 @@
       "steps": [
         { "name": "clean tree", "kind": "static", "builtin": "clean-tree" },
         { "name": "syntax check", "kind": "lint", "builtin": "syntax-check" },
+        { "name": "agent references", "kind": "static", "builtin": "references" },
+        { "name": "deny rules in sync", "kind": "static", "builtin": "deny-sync" },
         { "name": "unit tests", "kind": "unit", "run": ["node", "--test", "test/unit/**/*.test.mjs"] },
         { "name": "integration tests", "kind": "integration", "run": ["node", "--test", "test/integration/**/*.test.mjs"] }
       ]

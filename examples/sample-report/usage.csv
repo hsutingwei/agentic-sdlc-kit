@@ -1,0 +1,27 @@
+﻿task_id,model,responses,input_tokens,output_tokens,cache_write_tokens,cache_read_tokens
+DEMO-001,claude-opus-5-5,2,41,834,7004,129859
+DEMO-001,claude-sonnet-5-5,3,77,2877,4909,126921
+DEMO-002,claude-opus-5-5,2,75,3237,1880,63655
+DEMO-002,claude-sonnet-5-5,3,63,6011,7538,106393
+DEMO-003,claude-haiku-5-5,3,88,1220,10077,161118
+DEMO-003,claude-opus-5-5,4,93,4323,16939,130584
+DEMO-003,claude-sonnet-5-5,3,105,6102,8126,76326
+DEMO-004,claude-opus-5-5,2,86,1858,6779,120714
+DEMO-004,claude-sonnet-5-5,3,45,2945,10199,192327
+DEMO-005,claude-opus-5-5,2,62,2359,6438,104548
+DEMO-005,claude-sonnet-5-5,3,105,6510,6679,169036
+DEMO-006,claude-haiku-5-5,6,204,2220,14348,279845
+DEMO-006,claude-opus-5-5,4,171,7078,17020,177991
+DEMO-006,claude-sonnet-5-5,3,100,6002,9150,120755
+DEMO-007,claude-haiku-5-5,3,118,1893,10626,160104
+DEMO-007,claude-opus-5-5,2,63,1090,4809,107501
+DEMO-007,claude-sonnet-5-5,3,116,6095,8782,147689
+DEMO-008,claude-opus-5-5,2,64,1984,9685,85832
+DEMO-008,claude-sonnet-5-5,3,66,7303,10949,146226
+DEMO-010,claude-opus-5-5,2,66,1892,6440,151860
+DEMO-010,claude-sonnet-5-5,3,113,5904,7687,171001
+DEMO-011,claude-opus-5-5,2,82,3292,6444,109304
+DEMO-011,claude-sonnet-5-5,3,90,6314,10176,173318
+DEMO-012,claude-opus-5-5,2,23,1403,7070,55471
+DEMO-012,claude-sonnet-5-5,3,54,4843,11647,104577
+(outside tasks),claude-opus-5-5,4,157,7602,16378,241308

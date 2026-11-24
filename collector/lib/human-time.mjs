@@ -7,6 +7,7 @@
 
 export const ACTIVITIES = ['spec', 'review', 'fix', 'acceptance', 'other'];
 export const LONG_SESSION_MINUTES = 8 * 60;
+const CLOCK_TOLERANCE_MINUTES = 5 / 60; // five seconds
 
 const minutesBetween = (from, to) => (Date.parse(to) - Date.parse(from)) / 60000;
 
@@ -40,7 +41,9 @@ export function deriveHumanTime(events) {
       const rec = get(open.task_id);
       let minutes = minutesBetween(open.since, e.ts);
       if (minutes < 0) {
-        rec.flags.add('clock_went_back'); // the clock changed between start and stop
+        // Clocks of different processes can be milliseconds apart (ADR-0004); only a
+        // real jump back, such as a time change, is worth a flag.
+        if (minutes < -CLOCK_TOLERANCE_MINUTES) rec.flags.add('clock_went_back');
         minutes = 0;
       }
       rec.periods.push({ from: open.since, to: e.ts, activity: open.activity, minutes, auto: d.auto === true });

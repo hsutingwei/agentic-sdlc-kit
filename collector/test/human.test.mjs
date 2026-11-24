@@ -114,3 +114,11 @@ test('asdk human start, stop, adjust, status and task list', (t) => {
   assert.match(r.stdout, /^no timer running$/m);
   assert.match(r.stdout, /^DEMO-001\t25 min\treview 25 min/m);
 });
+
+test('a stop a few milliseconds before its start is clock skew, not a flag', () => {
+  const ev = (event, iso, data) => makeEvent({ source: 'cli', event, task_id: 'DEMO-001', project_id: 'demo-api', data }, new Date(iso));
+  const { tasks } = deriveHumanTime([ev('human.start', '2026-11-02T09:00:00.340Z', { activity: 'review' }), ev('human.stop', '2026-11-02T09:00:00.338Z')]);
+  const rec = tasks.get('DEMO-001');
+  assert.equal(rec.minutes, 0);
+  assert.deepEqual([...rec.flags], []);
+});

@@ -12,6 +12,7 @@ const COMMANDS = {
   enable: { load: () => import('../collector/cli/recording.mjs'), fn: 'runEnable', help: 'resume recording hook events' },
   disable: { load: () => import('../collector/cli/recording.mjs'), fn: 'runDisable', help: 'pause recording without uninstalling hooks' },
   task: { load: () => import('../collector/cli/task.mjs'), fn: 'runTask', help: 'start, verify and end tasks' },
+  human: { load: () => import('../collector/cli/human.mjs'), fn: 'runHuman', help: 'time spent by a person on a task' },
   report: { load: () => import('../collector/cli/report.mjs'), fn: 'runReport', help: 'write tasks.csv and summary.md' },
   wt: { load: () => import('../orchestration/cli/wt.mjs'), fn: 'runWt', help: 'create and finish a task worktree' },
   gate: { load: () => import('../governance/gate/cli.mjs'), fn: 'runGateCommand', help: 'run a configured gate and record the result' },

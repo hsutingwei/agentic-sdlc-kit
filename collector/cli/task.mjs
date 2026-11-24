@@ -2,6 +2,7 @@
 
 import { parse, requireOption } from '../../core/cli.mjs';
 import { usageError } from '../../core/errors.mjs';
+import { humanStatus } from '../lib/human.mjs';
 import { endTask, escalateTask, loadTasks, startTask, toContract, updateTask, verifyTask } from '../lib/tasks.mjs';
 
 const USAGE = {
@@ -12,7 +13,7 @@ const USAGE = {
   update: 'asdk task update <ID> --state <blocked|resumed> --reason <text> [--waiting-on <human|ai|external|quota|other>]',
   escalate: 'asdk task escalate <ID> --kind <takeover|repeated_failure|risk_decision> --reason <text>',
   end: 'asdk task end <ID> --outcome <accepted|rejected|abandoned|deferred> [--completed-by <ai|ai_with_human_fixes|human>]',
-  list: 'asdk task list [--json]',
+  list: 'asdk task list [--json]   (text: id, project, status, outcome, human minutes, escalations)',
 };
 
 function taskId(positionals, usage) {
@@ -89,9 +90,17 @@ export async function runTask(argv, { env, cwd, out }) {
     }
     case 'list': {
       const { values } = parse(rest, { json: { type: 'boolean' } }, { usage: USAGE.list });
-      const tasks = [...loadTasks(env).values()].map(toContract);
-      if (values.json) out(JSON.stringify(tasks, null, 2));
-      else for (const t of tasks) out(`${t.task_id}\t${t.project_id}\t${t.status}${t.outcome ? `\t${t.outcome}` : ''}`);
+      const records = [...loadTasks(env).values()];
+      if (values.json) {
+        out(JSON.stringify(records.map(toContract), null, 2));
+        return 0;
+      }
+      const human = humanStatus(env).tasks;
+      for (const r of records) {
+        const t = toContract(r);
+        const minutes = Math.round(human.get(t.task_id)?.minutes ?? 0);
+        out([t.task_id, t.project_id, t.status, t.outcome ?? '-', `human ${minutes} min`, `escalations ${r.escalations.length}`].join('\t'));
+      }
       return 0;
     }
     default:

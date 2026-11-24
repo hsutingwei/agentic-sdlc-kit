@@ -9,6 +9,7 @@
 import { AsdkError, ruleError, usageError } from '../../core/errors.mjs';
 import { headSha } from '../../core/git.mjs';
 import { validateContract } from '../../core/validate.mjs';
+import { deriveHumanTime } from './human-time.mjs';
 import { withCollectorLock } from './locks.mjs';
 import { resolveProject } from './registry.mjs';
 import { appendEvent, MANUAL_STREAM, makeEvent, readEvents } from './store.mjs';
@@ -153,11 +154,11 @@ export function loadTasks(env) {
 }
 
 /**
- * Task records from the manual stream only: enough to check a change, and fast however many hook events exist.
- * Refuses when a line there is damaged: it could be a hidden task start or end, and a check that cannot
- * see it would allow a change it should refuse.
+ * Events of the manual stream, where every task and human-time record is written: enough to check a
+ * change, and fast however many hook events exist. Refuses when a line there is damaged: it could be a
+ * hidden task start or end, and a check that cannot see it would allow a change it should refuse.
  */
-export function loadTaskRecords(env) {
+export function loadManualEvents(env) {
   const { events, damaged } = readEvents(env, { streams: [MANUAL_STREAM] });
   if (damaged.length > 0) {
     const where = damaged.slice(0, 5).map((d) => `events/${d.file}:${d.line}`);
@@ -167,11 +168,16 @@ export function loadTaskRecords(env) {
       2,
     );
   }
-  return deriveTasks(events).tasks;
+  return events;
+}
+
+/** Task records for checking a change (see loadManualEvents). */
+export function loadTaskRecords(env) {
+  return deriveTasks(loadManualEvents(env)).tasks;
 }
 
 /** A task that has started and not ended (active or blocked). */
-function openTask(env, taskId) {
+export function openTask(env, taskId) {
   if (!TASK_ID.test(taskId ?? '')) throw usageError(`invalid task id "${taskId}" (expected something like DEMO-001)`);
   const t = loadTaskRecords(env).get(taskId);
   if (!t) throw ruleError(`task ${taskId} has not been started`);
@@ -254,6 +260,11 @@ export function endTask(env, { taskId, outcome, completedBy, now }) {
   if (outcome === 'accepted' && completedBy === undefined) throw usageError('--completed-by is required when the outcome is accepted');
   return withCollectorLock(env, 'tasks', () => {
     const t = openTask(env, taskId);
+    // A human timer left running on this task stops when it ends, marked as automatic.
+    const { open } = deriveHumanTime(loadManualEvents(env));
+    if (open?.task_id === taskId) {
+      appendEvent(env, makeEvent({ source: 'cli', event: 'human.stop', project_id: t.project_id, task_id: taskId, data: { auto: true } }, now));
+    }
     return appendEvent(
       env,
       makeEvent({ source: 'cli', event: 'task.end', project_id: t.project_id, task_id: taskId, data: { outcome, completed_by: completedBy } }, now),

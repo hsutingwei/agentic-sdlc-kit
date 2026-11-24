@@ -9,9 +9,9 @@ const FIXTURES = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtur
 const fixture = (name) => JSON.parse(readFileSync(path.join(FIXTURES, `${name}.valid.json`), 'utf8'));
 const errorPaths = (name, value) => validateContract(name, value).errors.map((e) => e.path);
 
-const EXPECTED = ['agent-report', 'event', 'gate-summary', 'task', 'task-brief'];
+const EXPECTED = ['agent-report', 'event', 'gate-summary', 'task', 'task-brief', 'usage'];
 
-test('the five contracts are shipped', () => {
+test('the six contracts are shipped', () => {
   assert.deepEqual(listContracts(), EXPECTED);
 });
 

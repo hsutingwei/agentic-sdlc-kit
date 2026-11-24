@@ -92,4 +92,9 @@ test('asdk project add, project list and resolve', (t) => {
   assert.equal(runAsdk(sb, ['project', 'add', 'Bad Id', root]).status, 2);
   assert.equal(runAsdk(sb, ['nope']).status, 2);
   assert.match(runAsdk(sb, ['help']).stdout, /usage: asdk/);
+
+  const removed = runAsdk(sb, ['project', 'remove', 'demo-api']);
+  assert.equal(removed.status, 0, removed.stderr);
+  assert.equal(runAsdk(sb, ['project', 'list']).stdout, '');
+  assert.equal(runAsdk(sb, ['project', 'remove', 'demo-api']).status, 2);
 });

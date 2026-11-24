@@ -59,6 +59,16 @@ export function registerProject(env, { id, root, copyFiles = [] }) {
   return entry;
 }
 
+/** Removes a project entry. Recorded events keep their project_id. */
+export function removeProject(env, id) {
+  const config = loadConfig(env);
+  const entry = findProject(config, id);
+  if (!entry) throw usageError(`unknown project "${id}" (see asdk project list)`);
+  config.projects = config.projects.filter((p) => p.id !== id);
+  saveConfig(env, config);
+  return entry;
+}
+
 export function findProject(config, id) {
   return config.projects.find((p) => p.id === id) ?? null;
 }

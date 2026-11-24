@@ -1,9 +1,9 @@
-// asdk project add|list   and   asdk resolve [path]
+// asdk project add|remove|list   and   asdk resolve [path]
 
 import path from 'node:path';
 import { parse } from '../../core/cli.mjs';
 import { usageError } from '../../core/errors.mjs';
-import { loadConfig, registerProject, resolveProject } from '../lib/registry.mjs';
+import { loadConfig, registerProject, removeProject, resolveProject } from '../lib/registry.mjs';
 
 const ADD_USAGE = 'asdk project add <id> <root> [--copy-file <relative path>]...';
 
@@ -16,12 +16,19 @@ export async function runProject(argv, { env, out }) {
     out(`registered ${entry.id} -> ${entry.root}`);
     return 0;
   }
+  if (sub === 'remove') {
+    const { positionals } = parse(rest, {}, { positionals: 1, usage: 'asdk project remove <id>' });
+    if (positionals.length !== 1) throw usageError('usage: asdk project remove <id>');
+    const entry = removeProject(env, positionals[0]);
+    out(`removed ${entry.id} (${entry.root}); its recorded events are kept`);
+    return 0;
+  }
   if (sub === 'list') {
     parse(rest, {}, { usage: 'asdk project list' });
     for (const p of loadConfig(env).projects) out(`${p.id}\t${p.root}`);
     return 0;
   }
-  throw usageError('usage: asdk project add <id> <root> | asdk project list');
+  throw usageError('usage: asdk project add <id> <root> | asdk project remove <id> | asdk project list');
 }
 
 export async function runResolve(argv, { env, cwd, out }) {

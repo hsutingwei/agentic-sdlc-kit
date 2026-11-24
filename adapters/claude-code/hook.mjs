@@ -58,7 +58,8 @@ export function payloadToEvent(payload, { env = process.env, cwd = process.cwd()
   const marker = project.project_id && project.worktree ? readWorktreeMarker(env, project.project_id, project.worktree) : null;
 
   const agent = typeof payload.agent_id === 'string' && ID.test(payload.agent_id) ? { id: payload.agent_id } : undefined;
-  if (agent && typeof payload.agent_type === 'string' && payload.agent_type.length <= 100) agent.type = payload.agent_type;
+  // An untyped sub-agent arrives with agent_type ""; keep the event, without a type.
+  if (agent && typeof payload.agent_type === 'string' && payload.agent_type !== '' && payload.agent_type.length <= 100) agent.type = payload.agent_type;
 
   return makeEvent(
     {

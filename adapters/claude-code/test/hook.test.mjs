@@ -8,6 +8,7 @@ import { dataPath } from '../../../collector/lib/paths.mjs';
 import { loadConfig, registerProject, saveConfig } from '../../../collector/lib/registry.mjs';
 import { writeWorktreeMarker } from '../../../collector/lib/state.mjs';
 import { readEvents } from '../../../collector/lib/store.mjs';
+import { validateContract } from '../../../core/validate.mjs';
 import { payloadToEvent } from '../hook.mjs';
 
 // Payload shapes follow what Claude Code 2.1.330 sent in the spike (docs/spike).
@@ -59,6 +60,11 @@ test('sub-agent and prompt fields', (t) => {
   assert.deepEqual(sub.agent, { id: 'a335511527b9d0f06', type: 'implementer' });
   assert.equal(sub.data.last_message_chars, 3);
   assert.equal(sub.task_id, undefined); // the main checkout is not a task worktree
+
+  // Seen in real runs: a sub-agent without a type arrives with agent_type "". The event is kept.
+  const untyped = payloadToEvent({ session_id: 's', cwd: root, hook_event_name: 'PreToolUse', tool_name: 'Read', agent_id: 'a335511527b9d0f07', agent_type: '' }, { env: sb.env });
+  assert.deepEqual(untyped.agent, { id: 'a335511527b9d0f07' });
+  assert.deepEqual(validateContract('event', untyped).errors, []);
 
   const prompt = payloadToEvent({ session_id: 's', cwd: root, hook_event_name: 'UserPromptSubmit', prompt: SECRET, prompt_id: 'p-1' }, { env: sb.env });
   assert.equal(prompt.data.prompt_chars, SECRET.length);

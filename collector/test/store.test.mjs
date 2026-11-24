@@ -65,3 +65,20 @@ test('damaged lines are located, and streams can be read on their own', (t) => {
   assert.deepEqual(manual.events.map((e) => e.event), ['task.start']);
   assert.deepEqual(manual.damaged, []);
 });
+
+test('each stream keeps its line order even when clocks disagree by a few milliseconds', (t) => {
+  const sb = createSandbox(t, 'store-order');
+  const ev = (name, ts, stream) => appendEvent(sb.env, makeEvent({ source: 'cli', event: name }, at(ts)), stream);
+  // Written in this order by processes whose clocks are slightly out of step.
+  ev('human.start', '2026-11-02T09:00:00.340Z');
+  ev('human.stop', '2026-11-02T09:00:00.339Z');
+  ev('human.start', '2026-11-02T09:00:00.340Z');
+  // Another stream is still interleaved by time.
+  ev('Stop', '2026-11-02T09:00:00.100Z', 's1');
+  ev('SessionEnd', '2026-11-02T09:00:00.900Z', 's1');
+
+  assert.deepEqual(
+    readEvents(sb.env).events.map((e) => e.event),
+    ['Stop', 'human.start', 'human.stop', 'human.start', 'SessionEnd'],
+  );
+});

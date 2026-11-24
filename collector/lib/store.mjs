@@ -44,16 +44,23 @@ export function appendEvent(env, event, stream = MANUAL_STREAM) {
 /**
  * Reads events, oldest first. Lines that are not valid events are counted and located,
  * not thrown: one damaged line must not hide the rest of the history.
+ *
+ * Within one stream the order of the file is the true order: lines are appended one
+ * after another, under a lock where it matters. Timestamps from different processes
+ * can be a few milliseconds out of step (seen on Windows), so a plain sort by time
+ * could put a stop before its start. Streams are therefore merged by time, but each
+ * keeps its own line order.
  * @param {{ streams?: string[] }} [options] only these streams (file names without .jsonl);
  *   task checks read just `_manual`, which holds every task record, and skip the much larger hook streams
  * @returns {{ events: object[], invalid: number, damaged: { file: string, line: number }[] }}
  */
 export function readEvents(env, { streams } = {}) {
   const root = eventsDir(env);
-  const events = [];
+  const entries = [];
+  const lastKey = new Map(); // stream -> latest time key so far
   const damaged = [];
   let invalid = 0;
-  if (!existsSync(root)) return { events, invalid, damaged };
+  if (!existsSync(root)) return { events: [], invalid, damaged };
   const wanted = streams ? new Set(streams.map((name) => `${name}.jsonl`)) : null;
   for (const month of readdirSync(root).sort()) {
     const dir = path.join(root, month);
@@ -76,7 +83,10 @@ export function readEvents(env, { streams } = {}) {
           // counted below
         }
         if (event && validateContract('event', event).valid) {
-          events.push(event);
+          // Never earlier than the line before it in the same stream.
+          const key = event.ts > (lastKey.get(file) ?? '') ? event.ts : lastKey.get(file);
+          lastKey.set(file, key);
+          entries.push({ event, key, seq: entries.length });
         } else {
           invalid++;
           damaged.push({ file: `${month}/${file}`, line: index + 1 });
@@ -84,6 +94,6 @@ export function readEvents(env, { streams } = {}) {
       });
     }
   }
-  events.sort((a, b) => (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : 0));
-  return { events, invalid, damaged };
+  entries.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : a.seq - b.seq));
+  return { events: entries.map((e) => e.event), invalid, damaged };
 }

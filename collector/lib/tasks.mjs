@@ -8,6 +8,7 @@
 import { ruleError, usageError } from '../../core/errors.mjs';
 import { headSha } from '../../core/git.mjs';
 import { validateContract } from '../../core/validate.mjs';
+import { withCollectorLock } from './locks.mjs';
 import { resolveProject } from './registry.mjs';
 import { appendEvent, MANUAL_STREAM, makeEvent, readEvents } from './store.mjs';
 
@@ -151,9 +152,6 @@ export function startTask(env, { taskId, cwd, projectId, type, risk, title, esti
   if (!projectId) project = resolveProject(cwd, { env });
   if (!project.project_id) throw usageError('not inside a registered project; run "asdk project add" or pass --project');
 
-  const existing = loadTaskRecords(env).get(taskId);
-  if (existing) throw ruleError(`task ${taskId} already exists (${existing.status}); use a new task id`);
-
   const draft = toContract({
     task_id: taskId,
     project_id: project.project_id,
@@ -168,20 +166,24 @@ export function startTask(env, { taskId, cwd, projectId, type, risk, title, esti
   const check = validateContract('task', draft);
   if (!check.valid) throw usageError(`invalid task: ${check.errors[0].path} ${check.errors[0].message}`);
 
-  return appendEvent(
-    env,
-    makeEvent(
-      {
-        source: 'cli',
-        event: 'task.start',
-        project_id: project.project_id,
-        project_source: project.project_source,
-        task_id: taskId,
-        data: { type, risk, title, estimate_hours: estimateHours, fixes: fixes.length ? fixes.join(',') : undefined },
-      },
-      now,
-    ),
-  );
+  return withCollectorLock(env, 'tasks', () => {
+    const existing = loadTaskRecords(env).get(taskId);
+    if (existing) throw ruleError(`task ${taskId} already exists (${existing.status}); use a new task id`);
+    return appendEvent(
+      env,
+      makeEvent(
+        {
+          source: 'cli',
+          event: 'task.start',
+          project_id: project.project_id,
+          project_source: project.project_source,
+          task_id: taskId,
+          data: { type, risk, title, estimate_hours: estimateHours, fixes: fixes.length ? fixes.join(',') : undefined },
+        },
+        now,
+      ),
+    );
+  });
 }
 
 export function verifyTask(env, { taskId, check, result, executor, sha, gate, cwd, source = 'cli', now }) {
@@ -189,23 +191,27 @@ export function verifyTask(env, { taskId, check, result, executor, sha, gate, cw
   oneOf(result, RESULTS, '--result');
   oneOf(executor, EXECUTORS, '--executor');
   if (check === 'acceptance' && executor !== 'human') throw ruleError('acceptance can only be recorded by a human (--executor human)');
-  const t = activeTask(env, taskId);
   const commit = sha ?? (cwd ? headSha(cwd, env) : null);
   if (commit && !/^([0-9a-f]{40}|[0-9a-f]{64})$/.test(commit)) throw usageError(`--sha must be a full commit hash`);
 
-  return appendEvent(
-    env,
-    makeEvent({ source, event: 'task.verify', project_id: t.project_id, task_id: taskId, data: { check, result, executor, sha: commit ?? undefined, gate } }, now),
-  );
+  return withCollectorLock(env, 'tasks', () => {
+    const t = activeTask(env, taskId);
+    return appendEvent(
+      env,
+      makeEvent({ source, event: 'task.verify', project_id: t.project_id, task_id: taskId, data: { check, result, executor, sha: commit ?? undefined, gate } }, now),
+    );
+  });
 }
 
 export function endTask(env, { taskId, outcome, completedBy, now }) {
   oneOf(outcome, OUTCOMES, '--outcome');
   if (completedBy !== undefined) oneOf(completedBy, COMPLETED_BY, '--completed-by');
   if (outcome === 'accepted' && completedBy === undefined) throw usageError('--completed-by is required when the outcome is accepted');
-  const t = activeTask(env, taskId);
-  return appendEvent(
-    env,
-    makeEvent({ source: 'cli', event: 'task.end', project_id: t.project_id, task_id: taskId, data: { outcome, completed_by: completedBy } }, now),
-  );
+  return withCollectorLock(env, 'tasks', () => {
+    const t = activeTask(env, taskId);
+    return appendEvent(
+      env,
+      makeEvent({ source: 'cli', event: 'task.end', project_id: t.project_id, task_id: taskId, data: { outcome, completed_by: completedBy } }, now),
+    );
+  });
 }

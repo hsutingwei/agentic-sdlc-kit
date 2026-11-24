@@ -5,6 +5,7 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { usageError } from '../../core/errors.mjs';
+import { withCollectorLock } from './locks.mjs';
 import { dataPath } from './paths.mjs';
 import { appendEvent, makeEvent } from './store.mjs';
 
@@ -27,6 +28,10 @@ export function recordingState(env) {
 /** @returns {boolean} false when recording was already disabled */
 export function disableRecording(env, { reason, now = new Date() } = {}) {
   if (reason !== undefined && reason.length > 256) throw usageError('--reason must be at most 256 characters');
+  return withCollectorLock(env, 'recording', () => disableLocked(env, reason, now));
+}
+
+function disableLocked(env, reason, now) {
   if (isRecordingDisabled(env)) return false;
   appendEvent(env, makeEvent({ source: 'cli', event: 'recording.disable', data: reason ? { reason } : undefined }, now));
   const file = disabledFile(env);
@@ -39,6 +44,10 @@ export function disableRecording(env, { reason, now = new Date() } = {}) {
 
 /** @returns {boolean} false when recording was already enabled */
 export function enableRecording(env, { now = new Date() } = {}) {
+  return withCollectorLock(env, 'recording', () => enableLocked(env, now));
+}
+
+function enableLocked(env, now) {
   const state = recordingState(env);
   if (state.enabled) return false;
   rmSync(disabledFile(env), { force: true });

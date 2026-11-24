@@ -10,6 +10,7 @@ import { existsSync, mkdirSync, readFileSync, realpathSync, renameSync, writeFil
 import path from 'node:path';
 import { usageError } from '../../core/errors.mjs';
 import { locateRepo } from '../../core/git.mjs';
+import { withCollectorLock } from './locks.mjs';
 import { dataPath, expandHome, homeDir } from './paths.mjs';
 
 const PROJECT_ID = /^[a-z][a-z0-9-]*$/;
@@ -57,22 +58,27 @@ export function registerProject(env, { id, root, copyFiles = [] }) {
   for (const f of copyFiles) {
     if (path.isAbsolute(f) || f.split(/[/\\]/).includes('..')) throw usageError(`copy file must be relative to the project: ${f}`);
   }
-  const config = loadConfig(env);
   const entry = { id, root: path.resolve(root) };
   if (copyFiles.length > 0) entry.worktree_copy_files = copyFiles;
-  config.projects = config.projects.filter((p) => p.id !== id).concat(entry);
-  saveConfig(env, config);
-  return entry;
+  // Read, change and write config.json under one lock, or parallel adds lose each other's entries.
+  return withCollectorLock(env, 'config', () => {
+    const config = loadConfig(env);
+    config.projects = config.projects.filter((p) => p.id !== id).concat(entry);
+    saveConfig(env, config);
+    return entry;
+  });
 }
 
 /** Removes a project entry. Recorded events keep their project_id. */
 export function removeProject(env, id) {
-  const config = loadConfig(env);
-  const entry = findProject(config, id);
-  if (!entry) throw usageError(`unknown project "${id}" (see asdk project list)`);
-  config.projects = config.projects.filter((p) => p.id !== id);
-  saveConfig(env, config);
-  return entry;
+  return withCollectorLock(env, 'config', () => {
+    const config = loadConfig(env);
+    const entry = findProject(config, id);
+    if (!entry) throw usageError(`unknown project "${id}" (see asdk project list)`);
+    config.projects = config.projects.filter((p) => p.id !== id);
+    saveConfig(env, config);
+    return entry;
+  });
 }
 
 export function findProject(config, id) {

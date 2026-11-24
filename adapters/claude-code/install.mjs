@@ -19,6 +19,7 @@ import { fileURLToPath } from 'node:url';
 import { AsdkError, usageError } from '../../core/errors.mjs';
 import { locateRepo } from '../../core/git.mjs';
 import { childValues, insertChild, JsonTextError, nodeAt, parseJsonText, removeChild } from '../../core/json-text.mjs';
+import { withCollectorLock } from '../../collector/lib/locks.mjs';
 import { dataPath, homeDir } from '../../collector/lib/paths.mjs';
 import { appendEvent, makeEvent } from '../../collector/lib/store.mjs';
 
@@ -178,7 +179,11 @@ const backupNote = (before) => (before ? 'backup saved' : 'no previous file');
 const isOurs = (entry, commands) => Array.isArray(entry?.hooks) && entry.hooks.length === 1 && commands.includes(entry.hooks[0]?.command);
 const isAnyAsdk = (entry) => Array.isArray(entry?.hooks) && entry.hooks.some((h) => typeof h?.command === 'string' && ASDK_COMMAND.test(h.command));
 
-export function installHooks(env, { scope = 'user', project, cwd, dryRun = false, entry = hookEntry({ env }), beforeWrite } = {}) {
+export function installHooks(env, options = {}) {
+  return withCollectorLock(env, 'claude-settings', () => installLocked(env, options));
+}
+
+function installLocked(env, { scope = 'user', project, cwd, dryRun = false, entry = hookEntry({ env }), beforeWrite } = {}) {
   const { file } = settingsTarget(env, { scope, project, cwd });
   const before = readSettings(file);
   const manifest = readManifest(env, file);
@@ -255,7 +260,11 @@ function countStale(text, command) {
   return n;
 }
 
-export function uninstallHooks(env, { scope = 'user', project, cwd, dryRun = false, all = false, entry = hookEntry({ env }), beforeWrite } = {}) {
+export function uninstallHooks(env, options = {}) {
+  return withCollectorLock(env, 'claude-settings', () => uninstallLocked(env, options));
+}
+
+function uninstallLocked(env, { scope = 'user', project, cwd, dryRun = false, all = false, entry = hookEntry({ env }), beforeWrite } = {}) {
   const { file } = settingsTarget(env, { scope, project, cwd });
   const before = readSettings(file);
   const manifest = readManifest(env, file);

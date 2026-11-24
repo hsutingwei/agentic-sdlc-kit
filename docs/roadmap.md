@@ -12,12 +12,32 @@ ends with `npm test` actually run and the result reported.
 | P4 | Collector: token usage harvest, quota snapshots, plan changes | |
 | P5 | Collector: reports, push check, efficiency scorecard, fictional sample data | |
 | P6 | Governance templates and gates applied to `examples/demo-api`, role and model-tier profiles | |
-| P7 | Orchestration: planner workflow, report verification, isolation levels, worktree pool, dispatch guard, `budget status` | |
+| P7 | Orchestration: planner workflow, report verification, isolation levels, worktree pool, dispatch guard, `budget status`, a local job queue for gates and installs | |
 | P8 | Skill regression and reviewer cases | |
 | P9 | Documentation, ADRs, README, pre-publication checks (full-history scan, action pinning) | |
 
 **Demo-ready line:** after P1 and P5 the kit can be shown end to end; later
 phases deepen it.
+
+## Priorities toward the 3× goal
+
+The efficiency score divides the human estimate without AI by the **human hours**
+spent, so the target is less human time per task, not only more tasks at once.
+Expected bottlenecks, most important first (to be confirmed by P5 data):
+
+1. **Human review time** – the denominator itself. Clear acceptance criteria in
+   the brief, gates and reviewer agents before a human looks, agent reports checked
+   against the diff, and risk-based merging (P6, P7, P8).
+2. **Subscription quota** – caps volume on ordinary plans; rework spends it twice.
+   Model tiers per role, short sterile contexts, `budget status` and the dispatch
+   guard (P4, P6, P7).
+3. **Merge conflicts** – cause rework. Small tasks split by module, declared paths
+   with an overlap warning, frequent rebases (P7).
+4. **Local resources** – matter only from about four parallel worktrees. Gates and
+   dependency installs share a queue whose slots default from CPU cores and free
+   memory and are checked against current load before each job starts; running
+   jobs are never preempted (P7, using the P3 locks). Agent concurrency is set by
+   quota and the WIP limit, not by CPU: the models run remotely.
 
 ## Decisions so far
 

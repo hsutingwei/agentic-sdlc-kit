@@ -39,13 +39,18 @@ export function processAlive(pid) {
   }
 }
 
-/** Creates `file` exclusively with `content`; false if it already exists. */
+// On Windows a file that is being deleted while another process still has it open
+// keeps its name for a moment, and opening it fails with EPERM instead of EEXIST.
+const BUSY = new Set(['EEXIST', 'EPERM', 'EACCES', 'EBUSY']);
+const GONE = new Set(['ENOENT', 'EPERM', 'EACCES', 'EBUSY']);
+
+/** Creates `file` exclusively with `content`; false if it exists (or is still being deleted). */
 function createExclusive(file, content) {
   let fd;
   try {
     fd = openSync(file, 'wx');
   } catch (err) {
-    if (err.code === 'EEXIST') return false;
+    if (BUSY.has(err.code)) return false;
     throw err;
   }
   try {
@@ -64,7 +69,7 @@ function readHolder(file, now) {
     raw = readFileSync(file, 'utf8');
     mtimeMs = statSync(file).mtimeMs;
   } catch (err) {
-    if (err.code === 'ENOENT') return null;
+    if (GONE.has(err.code)) return null; // released meanwhile, or being deleted
     throw err;
   }
   let info = {};

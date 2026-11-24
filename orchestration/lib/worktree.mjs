@@ -16,7 +16,9 @@ import { findProject, loadConfig, worktreeRoot } from '../../collector/lib/regis
 import { readWorktreeMarker, removeWorktreeMarker, writeWorktreeMarker } from '../../collector/lib/state.mjs';
 import { appendEvent, makeEvent } from '../../collector/lib/store.mjs';
 import { loadTaskRecords } from '../../collector/lib/tasks.mjs';
-import { runGate } from '../../governance/gate/gate.mjs';
+import { loadGateConfig, runGate } from '../../governance/gate/gate.mjs';
+import { mergeRule, reviewStatus } from '../../governance/gate/policy.mjs';
+import { changedPaths, higherRisk, loadRiskPaths, pathMinimum } from '../../governance/gate/risk.mjs';
 
 const BRANCH_PREFIX = {
   feature: 'feat',
@@ -103,9 +105,16 @@ export function newWorktree(env, { taskId, slug, now }) {
 }
 
 /**
- * @returns {{ merged: boolean, gate: object, head_sha?: string, merge_sha?: string }}
+ * Rebases the task branch, runs the gate on the rebased commit and merges it when
+ * everything the merge policy asks for that commit's effective risk is there.
+ *
+ * The policy, gates and risk rules are read from the main checkout, which must be
+ * on the integration branch: a branch cannot loosen the rules it is judged by.
+ *
+ * @returns {{ merged: boolean, reason?: 'gate' | 'reviews', gate: object, risk: object, rule: object | null,
+ *             reviews?: object, head_sha?: string, merge_sha?: string }}
  */
-export function finishWorktree(env, { taskId, gate = 'G1', now }) {
+export function finishWorktree(env, { taskId, gate: requested, now }) {
   const task = activeTask(env, taskId);
   const { project, integration } = projectOf(env, task);
   const marker = readWorktreeMarker(env, project.id, taskId);
@@ -116,21 +125,36 @@ export function finishWorktree(env, { taskId, gate = 'G1', now }) {
   if (!isClean(wtPath, env)) throw ruleError(`the worktree has uncommitted changes; commit or discard them first (${wtPath})`);
   const ahead = Number(git(['rev-list', '--count', `${integration}..${branch}`], { cwd: root, env }));
   if (ahead === 0) throw ruleError(`branch ${branch} has no commits to merge`);
+  if (git(['branch', '--show-current'], { cwd: root, env }) !== integration) {
+    throw ruleError(`the main checkout must be on ${integration} to merge (${root})`);
+  }
+  if (!isClean(root, env)) throw ruleError(`the main checkout has uncommitted changes (${root})`);
 
   const rebase = tryGit(['rebase', '-q', integration], { cwd: wtPath, env });
   if (!rebase.ok) {
     tryGit(['rebase', '--abort'], { cwd: wtPath, env });
     throw ruleError(`rebasing ${branch} onto ${integration} hit conflicts; the rebase was aborted. Resolve them in ${wtPath} and run wt finish again`);
   }
-
-  const run = runGate(env, { gate, cwd: wtPath, taskId, record: true, now: now ? () => now : undefined });
-  if (run.summary.result !== 'pass') return { merged: false, gate: run };
-
   const verified = headSha(wtPath, env);
-  if (git(['branch', '--show-current'], { cwd: root, env }) !== integration) {
-    throw ruleError(`the main checkout must be on ${integration} to merge (${root})`);
+
+  // Effective risk of the rebased branch, by the integration branch's rules.
+  const changed = changedPaths(wtPath, env, { base: git(['rev-parse', `refs/heads/${integration}`], { cwd: root, env }), head: verified });
+  const minimum = pathMinimum(loadRiskPaths(root), changed).risk;
+  const effective = higherRisk(task.risk, minimum);
+  const rule = mergeRule(loadGateConfig(root), effective);
+  if (rule && requested && requested !== rule.gate) {
+    throw ruleError(`the merge policy requires gate ${rule.gate} for ${effective} risk; --gate ${requested} cannot replace it`);
   }
-  if (!isClean(root, env)) throw ruleError(`the main checkout has uncommitted changes (${root})`);
+  const gate = rule?.gate ?? requested ?? 'G1';
+
+  const run = runGate(env, { gate, cwd: wtPath, taskId, record: true, rulesFrom: root, now: now ? () => now : undefined });
+  const outcome = { gate: run, risk: run.summary.risk, rule, head_sha: verified };
+  if (run.summary.result !== 'pass') return { merged: false, reason: 'gate', ...outcome };
+  if (rule) {
+    const reviews = reviewStatus(loadTaskRecords(env).get(taskId).verifications, verified, rule.reviews);
+    if (!reviews.ok) return { merged: false, reason: 'reviews', reviews, ...outcome };
+  }
+
   if (!tryGit(['merge-base', '--is-ancestor', integration, verified], { cwd: root, env }).ok) {
     throw ruleError(`${integration} moved after the gate ran; run wt finish again so the gate checks the merge result`);
   }
@@ -153,10 +177,10 @@ export function finishWorktree(env, { taskId, gate = 'G1', now }) {
         project_id: project.id,
         task_id: taskId,
         worktree: taskId,
-        data: { branch, gate, head_sha: verified, merge_sha: mergeSha, integration },
+        data: { branch, gate, risk: run.summary.risk.effective, head_sha: verified, merge_sha: mergeSha, integration },
       },
       now,
     ),
   );
-  return { merged: true, gate: run, head_sha: verified, merge_sha: mergeSha };
+  return { merged: true, ...outcome, merge_sha: mergeSha };
 }

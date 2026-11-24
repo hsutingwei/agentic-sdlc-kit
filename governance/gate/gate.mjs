@@ -18,6 +18,7 @@ import { readWorktreeMarker } from '../../collector/lib/state.mjs';
 import { appendEvent, makeEvent } from '../../collector/lib/store.mjs';
 import { CHECKS, loadTaskRecords, verifyTask } from '../../collector/lib/tasks.mjs';
 import { denySyncCheck, referencesCheck } from './checks.mjs';
+import { validateMergePolicy } from './policy.mjs';
 import { changedPaths, higherRisk, loadRiskPaths, pathMinimum } from './risk.mjs';
 
 const CONFIG_FILE = path.join('.asdk', 'gates.json');
@@ -61,6 +62,7 @@ export function loadGateConfig(top) {
     }
     if (push.runners !== undefined && (!Array.isArray(push.runners) || !push.runners.every((r) => NAME.test(r)))) fail('push_check: "runners" must be a list of runner ids');
   }
+  if (config.merge_policy !== undefined) validateMergePolicy(config.merge_policy, config.gates, fail);
   return config;
 }
 
@@ -120,11 +122,14 @@ const stamp = (d) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z'
  * Runs one gate in the repository that contains `cwd`.
  * @returns {{ summary: object, file: string, outputs: Record<string, string>, risk_matches: Array<{ path: string, risk: string, reason?: string }> }}
  */
-export function runGate(env, { gate, cwd, taskId, record = false, runner, now = () => new Date() }) {
+export function runGate(env, { gate, cwd, taskId, record = false, runner, rulesFrom, now = () => new Date() }) {
   const repo = repoInfo(cwd, env);
   if (!repo) throw usageError('not inside a git repository');
   const top = repo.toplevel;
-  const config = loadGateConfig(top);
+  // Gates and risk rules come from `rulesFrom` when given (wt finish passes the
+  // integration branch checkout), so a branch cannot loosen the rules it is judged by.
+  const rulesTop = rulesFrom ?? top;
+  const config = loadGateConfig(rulesTop);
   const gateConfig = config.gates[gate];
   if (!gateConfig) throw usageError(`unknown gate "${gate}" (configured: ${Object.keys(config.gates).join(', ')})`);
 
@@ -146,8 +151,7 @@ export function runGate(env, { gate, cwd, taskId, record = false, runner, now = 
   const base = tryGit(['rev-parse', '--verify', '-q', `refs/heads/${baseBranch}`], { cwd: top, env });
   const runnerId = runner ?? config.runner_id ?? 'local';
   if (!NAME.test(runnerId)) throw usageError(`invalid runner id "${runnerId}"`);
-  const riskRules = loadRiskPaths(top);
-  const minimum = pathMinimum(riskRules, changedPaths(top, env, { base: base.ok ? base.stdout.trim() : null, head }));
+  const minimum = pathMinimum(loadRiskPaths(rulesTop), changedPaths(top, env, { base: base.ok ? base.stdout.trim() : null, head }));
 
   const startedAt = now();
   const treeClean = isClean(top, env);

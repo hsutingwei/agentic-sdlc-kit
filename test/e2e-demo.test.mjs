@@ -51,17 +51,29 @@ test('DEMO-001 end to end', (t) => {
   hook({ hook_event_name: 'PreToolUse', tool_name: 'Agent', tool_input: { subagent_type: 'implementer' }, tool_use_id: 'toolu_1' });
   hook({ hook_event_name: 'SubagentStart', agent_id: 'agent-e2e-1', agent_type: 'implementer' });
 
-  // 5. First attempt: the sub-agent forgets the existing tests. G1 fails; nothing is merged.
+  // 5. First attempt: the sub-agent forgets the existing tests. The task touches the
+  //    HTTP layer, so its risk rises from low to medium and the gate is G2. It fails.
   step('agent attempt 1', runNode(AGENT, [wt.path, 'attempt-1'], { env: sb.env }));
   const failed = step('wt finish (fails)', asdk(['wt', 'finish', 'DEMO-001']), 1);
+  assert.match(failed, /gate G2 on/);
+  assert.match(failed, /risk: low raised to medium/);
   assert.match(failed, /FAIL {4}unit tests/);
-  assert.match(failed, /not merged/);
+  assert.match(failed, /not merged: the gate did not pass/);
 
-  // 6. Second attempt fixes them. G1 passes on the rebased commit and the branch is merged into dev.
+  // 6. Second attempt fixes them. G2 passes on the rebased commit, but medium risk
+  //    also needs a review of that exact commit before anything is merged.
   step('agent attempt 2', runNode(AGENT, [wt.path, 'attempt-2'], { env: sb.env }));
   hook({ hook_event_name: 'SubagentStop', agent_id: 'agent-e2e-1', agent_type: 'implementer', last_assistant_message: '{"status":"completed"}' });
   hook({ hook_event_name: 'Stop', prompt_id: 'p-1', last_assistant_message: 'done' });
+  const waiting = step('wt finish (needs a review)', asdk(['wt', 'finish', 'DEMO-001']), 1);
+  assert.match(waiting, /result: pass/);
+  const sha = /--sha ([0-9a-f]{40})/.exec(waiting)?.[1];
+  assert.ok(sha, waiting);
+  step('human start review', asdk(['human', 'start', 'DEMO-001', '--activity', 'review']));
+  step('review', asdk(['task', 'verify', 'DEMO-001', '--check', 'review', '--result', 'pass', '--executor', 'human', '--sha', sha]));
+  step('human stop review', asdk(['human', 'stop', 'DEMO-001']));
   const merged = step('wt finish', asdk(['wt', 'finish', 'DEMO-001']));
+  assert.match(merged, new RegExp(`merged ${sha.slice(0, 12)} as`));
   assert.match(merged, /merged [0-9a-f]{12} as [0-9a-f]{12}/);
   assert.equal(existsSync(wt.path), false);
   assert.match(readFileSync(path.join(demo, 'src', 'todos.mjs'), 'utf8'), /due_date/);
@@ -82,9 +94,9 @@ test('DEMO-001 end to end', (t) => {
   assert.equal(row.outcome, 'accepted');
   assert.equal(row.estimate_h, 6);
   assert.equal(typeof row.lead_time_h, 'number');
-  assert.equal(row.verifications, 3); // G1 fail, G1 pass, human acceptance
+  assert.equal(row.verifications, 5); // G2 fail, G2 pass, human review, G2 pass, human acceptance
   assert.equal(row.first_pass, false);
-  assert.equal(row.gate_runs, 2);
+  assert.equal(row.gate_runs, 3);
   assert.equal(row.sessions, 1);
   assert.equal(row.subagents, 1);
   assert.equal(typeof row.human_h, 'number');

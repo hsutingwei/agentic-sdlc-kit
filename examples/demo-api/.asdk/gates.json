@@ -2,6 +2,12 @@
   "schema_version": 1,
   "runner_id": "local",
   "integration_branch": "dev",
+  "merge_policy": {
+    "low": { "gate": "G1" },
+    "medium": { "gate": "G2", "reviews": { "any": 1 } },
+    "high": { "gate": "G2", "reviews": { "agent": 1, "human": 1 } },
+    "critical": { "gate": "G2", "reviews": { "agent": 1, "human": 1 } }
+  },
   "gates": {
     "G1": {
       "description": "Fast gate: syntax check and unit tests.",

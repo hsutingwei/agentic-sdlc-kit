@@ -5,7 +5,7 @@ import path from 'node:path';
 import { createSandbox, git, makeDemoRepo, runAsdk } from '../../test/helpers/sandbox.mjs';
 import { registerProject, resolveProject } from '../../collector/lib/registry.mjs';
 import { readWorktreeMarker } from '../../collector/lib/state.mjs';
-import { loadTasks, startTask } from '../../collector/lib/tasks.mjs';
+import { loadTasks, startTask, verifyTask } from '../../collector/lib/tasks.mjs';
 import { finishWorktree, newWorktree, slugify } from '../lib/worktree.mjs';
 
 const LOCAL = path.join('.claude', 'settings.local.json');
@@ -119,4 +119,49 @@ test('asdk wt new and wt finish', (t) => {
   assert.match(finished.stdout, /result: pass/);
   assert.match(finished.stdout, /merged [0-9a-f]{12} as [0-9a-f]{12}/);
   assert.equal(runAsdk(sb, ['wt', 'finish', 'DEMO-001'], { cwd: root }).status, 1);
+});
+
+test('high risk needs an agent and a human review of the exact commit', (t) => {
+  const { sb, root } = setup(t, 'wt-high');
+  const wt = newWorktree(sb.env, { taskId: 'DEMO-001' });
+  commitIn(sb, wt.path, '.claude/agents/reviewer.md', '---\nname: reviewer\ndescription: Reviews a diff.\ntools: Read, Grep, Glob\n---\n\nReview it.\n', 'chore: add a reviewer agent');
+
+  const first = finishWorktree(sb.env, { taskId: 'DEMO-001' });
+  assert.deepEqual([first.merged, first.reason, first.risk.effective, first.gate.summary.gate], [false, 'reviews', 'high', 'G2']);
+  assert.deepEqual(first.reviews.missing, ['1 agent review(s)', '1 human review(s)']);
+  const sha = first.head_sha;
+
+  verifyTask(sb.env, { taskId: 'DEMO-001', check: 'review', result: 'pass', executor: 'agent', sha });
+  verifyTask(sb.env, { taskId: 'DEMO-001', check: 'review', result: 'fail', executor: 'agent', sha });
+  const blocked = finishWorktree(sb.env, { taskId: 'DEMO-001' });
+  assert.deepEqual([blocked.merged, blocked.reviews.blocked], [false, true]);
+
+  verifyTask(sb.env, { taskId: 'DEMO-001', check: 'review', result: 'pass', executor: 'human', sha });
+  const done = finishWorktree(sb.env, { taskId: 'DEMO-001' });
+  assert.equal(done.merged, true);
+  assert.equal(done.head_sha, sha, 'the reviewed commit is the merged one');
+  assert.equal(git(sb, root, 'rev-parse', 'HEAD^2').trim(), sha);
+});
+
+test('a branch cannot loosen the rules it is judged by, and --gate cannot replace the policy gate', (t) => {
+  const { sb } = setup(t, 'wt-rules');
+  const wt = newWorktree(sb.env, { taskId: 'DEMO-001' });
+  const gatesFile = path.join(wt.path, '.asdk', 'gates.json');
+  const weakened = JSON.parse(readFileSync(gatesFile, 'utf8'));
+  for (const risk of ['medium', 'high', 'critical']) weakened.merge_policy[risk] = { gate: 'G1' };
+  commitIn(sb, wt.path, '.asdk/gates.json', JSON.stringify(weakened, null, 2), 'chore: relax the merge policy');
+
+  const result = finishWorktree(sb.env, { taskId: 'DEMO-001' });
+  assert.deepEqual([result.merged, result.risk.effective, result.gate.summary.gate], [false, 'high', 'G2']);
+  assert.throws(() => finishWorktree(sb.env, { taskId: 'DEMO-001', gate: 'G1' }), /requires gate G2 for high risk/);
+});
+
+test('asdk wt finish explains which reviews are missing', (t) => {
+  const { sb, root } = setup(t, 'wt-cli-review');
+  const wt = newWorktree(sb.env, { taskId: 'DEMO-001' });
+  commitIn(sb, wt.path, 'src/server.mjs', `${readFileSync(path.join(wt.path, 'src', 'server.mjs'), 'utf8')}// note\n`);
+  const r = runAsdk(sb, ['wt', 'finish', 'DEMO-001'], { cwd: root });
+  assert.equal(r.status, 1, r.stdout + r.stderr);
+  assert.match(r.stdout, /not merged: medium risk needs 1 review\(s\) by an agent or a human of [0-9a-f]{12}\./);
+  assert.match(r.stdout, /asdk task verify DEMO-001 --check review --result pass\|fail --executor agent\|human --sha [0-9a-f]{40}/);
 });

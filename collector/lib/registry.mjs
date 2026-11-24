@@ -9,7 +9,7 @@
 import { existsSync, mkdirSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { usageError } from '../../core/errors.mjs';
-import { repoInfo } from '../../core/git.mjs';
+import { locateRepo } from '../../core/git.mjs';
 import { dataPath, expandHome, homeDir } from './paths.mjs';
 
 const PROJECT_ID = /^[a-z][a-z0-9-]*$/;
@@ -89,7 +89,7 @@ export function worktreeRoot(env, config = loadConfig(env)) {
  */
 export function resolveProject(cwd, { env = process.env, config = loadConfig(env) } = {}) {
   const target = normalizePath(cwd);
-  const repo = repoInfo(cwd, env);
+  const repo = locateRepo(cwd); // no git process: this runs on every hook call
   const slotOf = (root) => {
     if (!repo) return null;
     const top = normalizePath(repo.toplevel);

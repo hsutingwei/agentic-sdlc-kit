@@ -1,6 +1,6 @@
 // Scripted stand-in for the implementer sub-agent in the end-to-end test.
 //
-//   node agent.mjs <worktree> attempt-1   src + new tests, but forgets that the
+//   node agent.mjs <worktree> attempt-1   src, new tests and a verify scenario, but forgets that the
 //                                         existing tests expect items without due_date
 //   node agent.mjs <worktree> attempt-2   updates the existing tests
 //
@@ -18,6 +18,7 @@ const git = (...args) => execFileSync('git', args, { cwd: worktree, stdio: 'pipe
 if (attempt === 'attempt-1') {
   copyFileSync(path.join(here, 'src', 'todos.mjs'), path.join(worktree, 'src', 'todos.mjs'));
   copyFileSync(path.join(here, 'test', 'unit', 'due-date.test.mjs'), path.join(worktree, 'test', 'unit', 'due-date.test.mjs'));
+  copyFileSync(path.join(here, 'test', 'scenarios', 'DEMO-001-AC2.json'), path.join(worktree, 'test', 'scenarios', 'DEMO-001-AC2.json'));
   const server = path.join(worktree, 'src', 'server.mjs');
   const before = readFileSync(server, 'utf8');
   const after = before.replace(

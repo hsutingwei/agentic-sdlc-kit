@@ -45,3 +45,10 @@ test('demo-api carries the governance templates, with only the project notes fil
   assert.equal(read(DEMO, 'CLAUDE.md'), '@AGENTS.md\n');
   assert.deepEqual(JSON.parse(read(DEMO, '.claude', 'settings.json')), JSON.parse(read(TEMPLATES, 'settings.json')));
 });
+
+test('demo-api carries the verify skill template unchanged', () => {
+  const read = (...p) => readFileSync(path.join(...p), 'utf8').replace(/\r\n/g, '\n');
+  const skill = ['.claude', 'skills', 'verify', 'SKILL.md'];
+  assert.equal(read(DEMO, ...skill), read(DEMO, '..', '..', 'governance', 'templates', 'skills', 'verify', 'SKILL.md'));
+  assert.match(read(DEMO, ...skill), /^---\nname: verify\ndescription: .+\nallowed-tools: .+\n---\n/);
+});

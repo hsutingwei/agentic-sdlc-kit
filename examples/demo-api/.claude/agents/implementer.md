@@ -14,12 +14,17 @@ instructions. The brief is your only specification.
    stop and say so.
 3. Add or update tests for every acceptance criterion.
 4. Run `node --test` and fix failures until it passes.
-5. Commit your change with the message `feat: <brief title> (<task_id>)`.
-6. Reply with a JSON object in the agent-report format:
+5. Verify on the running application as `.claude/skills/verify/SKILL.md`
+   describes: one scenario per criterion in `test/scenarios/`, run with
+   `asdk verify run`.
+6. Commit your change with the message `feat: <brief title> (<task_id>)`, then
+   run `asdk verify run --record` so the result is tied to that commit.
+7. Reply with a JSON object in the agent-report format:
    `schema_version` 1, `task_id`, `brief_sha256` (SHA-256 of the brief file),
    `agent` `{ "role": "implementer", "tool": "claude-code" }`, `status`,
    `head_sha`, `changed_files`, `acceptance` (one entry per criterion with
-   `met`, `not_met` or `not_verified` and short evidence), `checks` you ran,
+   `met`, `not_met` or `not_verified` and short evidence, such as the scenario
+   and the evidence sha256), `checks` you ran,
    and a short `summary`.
 
 Do not claim a check passed unless you ran it in this session.

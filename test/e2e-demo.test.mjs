@@ -63,6 +63,11 @@ test('DEMO-001 end to end', (t) => {
   // 6. Second attempt fixes them. G2 passes on the rebased commit, but medium risk
   //    also needs a review of that exact commit before anything is merged.
   step('agent attempt 2', runNode(AGENT, [wt.path, 'attempt-2'], { env: sb.env }));
+  // The agent verifies on the running API and records the evidence on its commit.
+  const verified = step('verify --record', asdk(['verify', 'run', '--record'], wt.path));
+  assert.match(verified, /PASS {4}DEMO-001-AC2 \(AC1, AC2\)/);
+  assert.match(verified, /PASS {4}todos-basic/);
+  assert.match(verified, /recorded as ui on DEMO-001/);
   hook({ hook_event_name: 'SubagentStop', agent_id: 'agent-e2e-1', agent_type: 'implementer', last_assistant_message: '{"status":"completed"}' });
   hook({ hook_event_name: 'Stop', prompt_id: 'p-1', last_assistant_message: 'done' });
   const waiting = step('wt finish (needs a review)', asdk(['wt', 'finish', 'DEMO-001']), 1);
@@ -94,7 +99,7 @@ test('DEMO-001 end to end', (t) => {
   assert.equal(row.outcome, 'accepted');
   assert.equal(row.estimate_h, 6);
   assert.equal(typeof row.lead_time_h, 'number');
-  assert.equal(row.verifications, 5); // G2 fail, G2 pass, human review, G2 pass, human acceptance
+  assert.equal(row.verifications, 6); // G2 fail, verify ui pass, G2 pass, human review, G2 pass, human acceptance
   assert.equal(row.first_pass, false);
   assert.equal(row.gate_runs, 3);
   assert.equal(row.sessions, 1);

@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "description": "GET /todos?overdue=true returns only open items whose due date has passed.",
+  "criteria": ["AC1", "AC2"],
+  "steps": [
+    {
+      "name": "an overdue item",
+      "request": { "method": "POST", "path": "/todos", "json": { "title": "繳費", "due_date": "2000-01-01" } },
+      "expect": { "status": 201, "json": { "due_date": "2000-01-01", "done": false } }
+    },
+    {
+      "name": "an item due in the future",
+      "request": { "method": "POST", "path": "/todos", "json": { "title": "續約", "due_date": "2999-12-31" } },
+      "expect": { "status": 201 }
+    },
+    {
+      "name": "an overdue item that is done",
+      "request": { "method": "POST", "path": "/todos", "json": { "title": "報稅", "due_date": "2000-01-02" } },
+      "expect": { "status": 201 },
+      "save": { "done_id": "id" }
+    },
+    {
+      "name": "mark it done",
+      "request": { "method": "PATCH", "path": "/todos/{done_id}", "json": { "done": true } },
+      "expect": { "status": 200, "json": { "done": true } }
+    },
+    {
+      "name": "only the open overdue item is listed",
+      "request": { "method": "GET", "path": "/todos?overdue=true" },
+      "expect": { "status": 200, "json": [{ "title": "繳費", "due_date": "2000-01-01" }] }
+    },
+    {
+      "name": "an impossible date is refused",
+      "request": { "method": "POST", "path": "/todos", "json": { "title": "x", "due_date": "2026-02-30" } },
+      "expect": { "status": 400 }
+    }
+  ]
+}

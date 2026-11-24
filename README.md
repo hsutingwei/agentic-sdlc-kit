@@ -2,7 +2,7 @@
 
 [繁體中文](README.zh-TW.md)
 
-> **Status: early development (P4 of 10 done).** A minimal end-to-end slice works:
+> **Status: v0.1 (P5 of 10 done).** A minimal end-to-end slice works:
 > task → worktree → sub-agent → gate → merge → scorecard, and Claude Code hooks can be
 > installed and removed without a trace. See the [roadmap](docs/roadmap.md).
 

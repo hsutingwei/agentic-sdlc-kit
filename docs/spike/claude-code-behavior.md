@@ -168,4 +168,6 @@ of `error`; it records `effort.level`. Hook commands use an absolute node path.
 - Whether the status line or another interactive surface exposes `rate_limit_info`.
 - Which windows `unifiedWindows` lists for other plans and usage levels.
 - Whether a foreground sub-agent can be requested per call, and how that changes
-  finding 6.
+  finding 6. The real demo run ([demo-run.md](../demo-run.md)) reported its
+  sub-agent as requested in the foreground, so both modes occur; the kit treats
+  them alike.

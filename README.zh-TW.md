@@ -2,7 +2,7 @@
 
 [English](README.md)
 
-> **狀態：開發初期（共 10 個階段，P4 已完成）。** 最精簡的端到端流程已經可以運作：
+> **狀態：v0.1（共 10 個階段，P5 已完成）。** 最精簡的端到端流程已經可以運作：
 > 任務 → worktree → 子代理 → gate → 合併 → scorecard；Claude Code 的 hooks 也能安裝，
 > 並且移除後不留痕跡。詳見 [roadmap](docs/roadmap.md)。
 

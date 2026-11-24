@@ -2,7 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { createSandbox, runAsdk } from '../../../test/helpers/sandbox.mjs';
+import { createSandbox, makeRepo, runAsdk } from '../../../test/helpers/sandbox.mjs';
+import { dataPath } from '../../../collector/lib/paths.mjs';
+import { registerProject } from '../../../collector/lib/registry.mjs';
 import { validateContract } from '../../../core/validate.mjs';
 import { appendEvent, makeEvent } from '../../../collector/lib/store.mjs';
 import { buildUsage, findTranscripts, harvestSession, usageFile } from '../harvest.mjs';
@@ -105,4 +107,31 @@ test('asdk harvest by session, by task and for all sessions', (t) => {
   assert.match(runAsdk(sb, ['harvest', '--session', 'sess-none']).stdout, /no transcript found/);
   assert.equal(runAsdk(sb, ['harvest']).status, 2);
   assert.equal(runAsdk(sb, ['harvest', '--task', 'DEMO-009']).status, 1);
+});
+
+test('task end harvests the task sessions and only warns when that fails', (t) => {
+  const sb = createSandbox(t, 'harvest-end');
+  const root = makeRepo(sb, sb.join('示範 專案'));
+  registerProject(sb.env, { id: 'demo-api', root });
+  writeSession(sb, { main: MAIN(), agents: [AGENT()] });
+  const tie = (session, task) => appendEvent(sb.env, makeEvent({ source: 'hook', event: 'Stop', session_id: session, task_id: task, project_id: 'demo-api' }), session);
+
+  assert.equal(runAsdk(sb, ['task', 'start', 'DEMO-001', '--type', 'feature', '--risk', 'low'], { cwd: root }).status, 0);
+  tie(SESSION, 'DEMO-001');
+  tie('sess-gone', 'DEMO-001');
+  let r = runAsdk(sb, ['task', 'end', 'DEMO-001', '--outcome', 'abandoned']);
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /usage: 1 of 2 session\(s\) harvested/);
+  assert.match(r.stderr, /no transcript found for 1 session/);
+  assert.ok(existsSync(usageFile(sb.env, SESSION)));
+
+  // The usage directory cannot be written: the task still ends.
+  assert.equal(runAsdk(sb, ['task', 'start', 'DEMO-002', '--type', 'feature', '--risk', 'low'], { cwd: root }).status, 0);
+  tie(SESSION, 'DEMO-002');
+  rmSync(dataPath(sb.env, 'usage'), { recursive: true });
+  writeFileSync(dataPath(sb.env, 'usage'), 'not a directory');
+  r = runAsdk(sb, ['task', 'end', 'DEMO-002', '--outcome', 'abandoned']);
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /ended DEMO-002/);
+  assert.match(r.stderr, /warning: could not harvest/);
 });

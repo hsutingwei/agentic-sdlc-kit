@@ -3,6 +3,7 @@
 import { parse, requireOption } from '../../core/cli.mjs';
 import { usageError } from '../../core/errors.mjs';
 import { humanStatus } from '../lib/human.mjs';
+import { readEvents } from '../lib/store.mjs';
 import { endTask, escalateTask, loadTasks, startTask, toContract, updateTask, verifyTask } from '../lib/tasks.mjs';
 
 const USAGE = {
@@ -16,12 +17,31 @@ const USAGE = {
   list: 'asdk task list [--json]   (text: id, project, status, outcome, human minutes, escalations)',
 };
 
+/**
+ * Collects the token usage of the task's sessions once it has ended. Never fails the
+ * command: the task is already ended, and `asdk harvest --task` can be run again later.
+ */
+async function harvestAfterEnd(env, id, { out, err }) {
+  try {
+    // The usage format of each tool lives in its adapter; Claude Code is the only one so far.
+    const { harvestSessions, sessionsOfTask } = await import('../../adapters/claude-code/harvest-cli.mjs');
+    const results = harvestSessions(env, sessionsOfTask(readEvents(env).events, id));
+    if (results.length === 0) return;
+    const by = (status) => results.filter((r) => r.status === status).length;
+    out(`usage: ${by('harvested') + by('unchanged')} of ${results.length} session(s) harvested`);
+    for (const r of results.filter((x) => x.status === 'failed')) err(`warning: could not harvest ${r.session_id}: ${r.error}`);
+    if (by('missing')) err(`warning: no transcript found for ${by('missing')} session(s); usage for them stays empty`);
+  } catch (e) {
+    err(`warning: usage was not harvested (${e.message}); run asdk harvest --task ${id}`);
+  }
+}
+
 function taskId(positionals, usage) {
   if (positionals.length !== 1) throw usageError(`usage: ${usage}`);
   return positionals[0];
 }
 
-export async function runTask(argv, { env, cwd, out }) {
+export async function runTask(argv, { env, cwd, out, err }) {
   const [sub, ...rest] = argv;
   switch (sub) {
     case 'start': {
@@ -86,6 +106,7 @@ export async function runTask(argv, { env, cwd, out }) {
       const { values, positionals } = parse(rest, { outcome: { type: 'string' }, 'completed-by': { type: 'string' } }, { positionals: 1, usage: u });
       const e = endTask(env, { taskId: taskId(positionals, u), outcome: requireOption(values, 'outcome', u), completedBy: values['completed-by'] });
       out(`ended ${e.task_id}: ${e.data.outcome}`);
+      await harvestAfterEnd(env, e.task_id, { out, err });
       return 0;
     }
     case 'list': {

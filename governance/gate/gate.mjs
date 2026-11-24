@@ -21,7 +21,7 @@ import { CHECKS, loadTaskRecords, verifyTask } from '../../collector/lib/tasks.m
 const CONFIG_FILE = path.join('.asdk', 'gates.json');
 const KINDS = ['lint', 'build', 'unit', 'integration', 'ui', 'static'];
 const NAME = /^[A-Za-z0-9][A-Za-z0-9_.-]*$/;
-const BUILTINS = { 'syntax-check': syntaxCheck };
+const BUILTINS = { 'syntax-check': syntaxCheck, 'clean-tree': cleanTree };
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
 
 export function loadGateConfig(top) {
@@ -84,6 +84,14 @@ function syntaxCheck({ cwd, env }) {
     if (r.status !== 0) failed.push(`${file}\n${r.stderr.trim()}`);
   }
   return { status: failed.length ? 1 : 0, output: failed.length ? failed.join('\n\n') : `${files.length} files OK` };
+}
+
+/** A release gate verifies exactly what is committed: any uncommitted or untracked file fails it. */
+function cleanTree({ cwd, env }) {
+  const changes = git(['status', '--porcelain', '--untracked-files=all'], { cwd, env }).split(/\r?\n/).filter(Boolean);
+  if (changes.length === 0) return { status: 0, output: 'working tree clean' };
+  const list = changes.slice(0, 20).join('\n');
+  return { status: 1, output: `${changes.length} uncommitted or untracked file(s); commit or remove them, then run the gate again:\n${list}` };
 }
 
 function runStep(step, { cwd, env }) {

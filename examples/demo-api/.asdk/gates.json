@@ -10,6 +10,24 @@
         { "name": "syntax check", "kind": "lint", "builtin": "syntax-check" },
         { "name": "unit tests", "kind": "unit", "run": ["node", "--test", "test/unit/**/*.test.mjs"] }
       ]
+    },
+    "G2": {
+      "description": "Full gate: G1 plus the HTTP integration tests.",
+      "verifies": "integration",
+      "steps": [
+        { "name": "syntax check", "kind": "lint", "builtin": "syntax-check" },
+        { "name": "unit tests", "kind": "unit", "run": ["node", "--test", "test/unit/**/*.test.mjs"] },
+        { "name": "integration tests", "kind": "integration", "run": ["node", "--test", "test/integration/**/*.test.mjs"] }
+      ]
+    },
+    "G3": {
+      "description": "Release gate: a clean working tree, then everything G2 runs, on the commit to be pushed.",
+      "steps": [
+        { "name": "clean tree", "kind": "static", "builtin": "clean-tree" },
+        { "name": "syntax check", "kind": "lint", "builtin": "syntax-check" },
+        { "name": "unit tests", "kind": "unit", "run": ["node", "--test", "test/unit/**/*.test.mjs"] },
+        { "name": "integration tests", "kind": "integration", "run": ["node", "--test", "test/integration/**/*.test.mjs"] }
+      ]
     }
   }
 }

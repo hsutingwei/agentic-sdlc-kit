@@ -21,8 +21,17 @@ function setup(t, label, mode = 'solve') {
 }
 
 test('a low-risk run merges after the gate; the kit records it in the run folder', (t) => {
-  const { dir, baseEnv } = setup(t, 'e1-run-low');
-  const rec = executeRun(dir, { run: 'r01', task: 'DEMO-101', profile: 'pro', repeat: 1, pilot: true }, { baseEnv, claude });
+  const { sb, dir, baseEnv } = setup(t, 'e1-run-low');
+  const argsFile = sb.join('fake-args.jsonl');
+  const rec = executeRun(dir, { run: 'r01', task: 'DEMO-101', profile: 'pro', repeat: 1, pilot: true }, { baseEnv: { ...baseEnv, FAKE_CLAUDE_ARGS_FILE: argsFile }, claude });
+  // The person's own settings and MCP servers are kept out; what the run was made with is kept.
+  const [args] = readFileSync(argsFile, 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+  assert.deepEqual(args.slice(args.indexOf('--setting-sources'), args.indexOf('--setting-sources') + 3), ['--setting-sources', 'project,local', '--strict-mcp-config']);
+  assert.deepEqual(args.slice(args.indexOf('--model'), args.indexOf('--model') + 4), ['--model', 'sonnet', '--effort', 'high']);
+  const started = runStates(dir).get('r01');
+  assert.equal(started.claude_version, '0.0.0 (fake claude)');
+  assert.match(started.kit_commit, /^[0-9a-f]{40}$/);
+  assert.equal(typeof started.kit_dirty, 'boolean');
   assert.deepEqual([rec.stage, rec.first_gate, rec.merged, rec.risk.effective, rec.attempts.length], ['review', 'pass', true, 'low', 1]);
   assert.deepEqual(rec.quota, { five_hour: 42, seven_day: 10 });
 

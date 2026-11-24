@@ -33,7 +33,10 @@ costs?
   `wt new`; then `claude -p` in the worktree with the planner's model and effort,
   `acceptEdits` and the tools Read, Edit, Write, Glob, Grep, Agent and
   `node`, `git`, `asdk` in Bash. The caller's `CLAUDE_CODE_*`, `ANTHROPIC_*` and
-  `AGENTIC_*` settings are removed. A failed gate gets one retry with its
+  `AGENTIC_*` settings are removed, and `--setting-sources project,local` with
+  `--strict-mcp-config` keeps the person's own Claude Code settings and MCP servers
+  out; the demo's agents, skills and hooks still load. Each run records the
+  Claude Code version and the kit commit. A failed gate gets one retry with its
   output; a second failure is an escalation.
 - **Review:** every run, merged or not, is reviewed by the person, one at a time,
   in an order of its own and without the profile. The kit's human timer measures

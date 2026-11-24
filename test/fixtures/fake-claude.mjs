@@ -14,6 +14,12 @@ import path from 'node:path';
 import { applyOverlay, loadTask } from '../../tools/experiment/lib/catalogue.mjs';
 
 const args = process.argv.slice(2);
+if (args.includes('--version')) {
+  process.stdout.write('0.0.0 (fake claude)\n');
+  process.exit(0);
+}
+const seen = process.env.FAKE_CLAUDE_ARGS_FILE;
+if (seen) appendFileSync(seen, `${JSON.stringify(args)}\n`);
 const prompt = args[args.indexOf('-p') + 1] ?? '';
 const id = /briefs\/(DEMO-\d+)\.json/.exec(prompt)?.[1];
 const retry = prompt.startsWith('wt finish did not merge');

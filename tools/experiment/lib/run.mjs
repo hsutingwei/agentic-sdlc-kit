@@ -27,6 +27,21 @@ import { logRun, PLAN_OF, runDir } from './plan.mjs';
 const KIT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const ASDK = path.join(KIT, 'bin', 'asdk.mjs');
 export const ALLOWED_TOOLS = 'Read,Edit,Write,Glob,Grep,Agent,Bash(node:*),Bash(git:*),Bash(asdk:*)';
+// The person's own Claude Code settings (permissions, plugins) and MCP servers stay out of the
+// runs; the demo's project and local settings, agents, skills and hooks still load.
+export const ISOLATION_ARGS = ['--setting-sources', 'project,local', '--strict-mcp-config'];
+
+/** What the run was made with: the Claude Code version and the kit commit. */
+export function versions(claude, env) {
+  const v = spawnSync(claude.command, [...claude.args, '--version'], { env, encoding: 'utf8', timeout: 30000, windowsHide: true });
+  const kit = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: KIT, encoding: 'utf8', windowsHide: true });
+  const dirty = spawnSync('git', ['status', '--porcelain'], { cwd: KIT, encoding: 'utf8', windowsHide: true });
+  return {
+    claude_version: v.status === 0 ? v.stdout.trim().split(/\r?\n/)[0].slice(0, 80) : null,
+    kit_commit: kit.status === 0 ? kit.stdout.trim() : null,
+    kit_dirty: dirty.status === 0 ? dirty.stdout.trim() !== '' : null,
+  };
+}
 const AGENT_TIMEOUT_MS = 20 * 60 * 1000;
 const GATE_TAIL_LINES = 40;
 // Stop starting runs when a window is this full; the plan resumes later.
@@ -91,7 +106,7 @@ function summarizeStream(text) {
 /** Runs the agent once in the worktree; returns what the run and the quota looked like. */
 function runAgent(ctx, { attempt, prompt }) {
   const { claude, env, wt, dir, run, profileArgs } = ctx;
-  const args = [...claude.args, '-p', prompt, ...profileArgs, '--output-format', 'stream-json', '--verbose', '--permission-mode', 'acceptEdits', '--allowedTools', ALLOWED_TOOLS];
+  const args = [...claude.args, '-p', prompt, ...profileArgs, ...ISOLATION_ARGS, '--output-format', 'stream-json', '--verbose', '--permission-mode', 'acceptEdits', '--allowedTools', ALLOWED_TOOLS];
   const t0 = Date.now();
   const r = spawnSync(claude.command, args, { cwd: wt, env, encoding: 'utf8', timeout: AGENT_TIMEOUT_MS, maxBuffer: 256 * 1024 * 1024, windowsHide: true });
   const stream = r.stdout ?? '';
@@ -130,7 +145,7 @@ export function executeRun(dir, planned, { baseEnv = process.env, claude, now = 
     logRun(dir, full, now());
     return full;
   };
-  log({ stage: 'started', task: task.id, profile, repeat: planned.repeat, pilot: planned.pilot });
+  log({ stage: 'started', task: task.id, profile, repeat: planned.repeat, pilot: planned.pilot, ...versions(claude, env) });
 
   // A fresh demo, with worktrees inside the run folder rather than ~/wt.
   const repo = path.join(folder, 'demo-api');

@@ -14,6 +14,7 @@ const COMMANDS = {
   task: { load: () => import('../collector/cli/task.mjs'), fn: 'runTask', help: 'start, verify and end tasks' },
   human: { load: () => import('../collector/cli/human.mjs'), fn: 'runHuman', help: 'time spent by a person on a task' },
   report: { load: () => import('../collector/cli/report.mjs'), fn: 'runReport', help: 'write tasks.csv and summary.md' },
+  usage: { load: () => import('../collector/cli/usage.mjs'), fn: 'runUsage', help: 'token usage by model and agent type' },
   wt: { load: () => import('../orchestration/cli/wt.mjs'), fn: 'runWt', help: 'create and finish a task worktree' },
   gate: { load: () => import('../governance/gate/cli.mjs'), fn: 'runGateCommand', help: 'run a configured gate and record the result' },
   harvest: { load: () => import('../adapters/claude-code/harvest-cli.mjs'), fn: 'runHarvest', help: 'collect token usage from Claude Code transcripts' },

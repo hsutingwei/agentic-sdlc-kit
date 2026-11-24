@@ -53,7 +53,7 @@ export const COLUMNS = [
   'flags',
 ];
 
-export const VERIFICATION_COLUMNS = ['task_id', 'ts', 'check', 'result', 'executor', 'gate', 'sha'];
+export const VERIFICATION_COLUMNS = ['task_id', 'ts', 'check', 'result', 'executor', 'gate', 'sha', 'evidence'];
 export const USAGE_COLUMNS = ['task_id', 'model', 'responses', ...TOKENS];
 export const OUTSIDE_TASKS = '(outside tasks)';
 
@@ -165,7 +165,7 @@ export function buildReport({ events, usageOf, config = {}, now = new Date() }) 
     }
     usageByTask.set(t.task_id, byModel);
 
-    for (const v of t.verifications) verifications.push({ task_id: t.task_id, ts: v.ts, check: v.check, result: v.result, executor: v.executor, gate: v.gate ?? null, sha: v.sha ?? null });
+    for (const v of t.verifications) verifications.push({ task_id: t.task_id, ts: v.ts, check: v.check, result: v.result, executor: v.executor, gate: v.gate ?? null, sha: v.sha ?? null, evidence: v.evidence ?? null });
 
     const row = {
       task_id: t.task_id,

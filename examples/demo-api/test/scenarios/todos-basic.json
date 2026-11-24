@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "description": "Create a todo, read it back, mark it done, list it, delete it.",
+  "steps": [
+    {
+      "name": "create a todo",
+      "request": { "method": "POST", "path": "/todos", "json": { "title": "寫驗證情境" } },
+      "expect": { "status": 201, "json": { "title": "寫驗證情境", "done": false } },
+      "save": { "id": "id" }
+    },
+    {
+      "name": "read it back",
+      "request": { "method": "GET", "path": "/todos/{id}" },
+      "expect": { "status": 200, "json": { "id": "{id}", "title": "寫驗證情境" } }
+    },
+    {
+      "name": "mark it done",
+      "request": { "method": "PATCH", "path": "/todos/{id}", "json": { "done": true } },
+      "expect": { "status": 200, "json": { "done": true } }
+    },
+    {
+      "name": "the list has it",
+      "request": { "method": "GET", "path": "/todos" },
+      "expect": { "status": 200, "length": 1 }
+    },
+    {
+      "name": "an empty title is refused",
+      "request": { "method": "POST", "path": "/todos", "json": { "title": "  " } },
+      "expect": { "status": 400 }
+    },
+    {
+      "name": "delete it",
+      "request": { "method": "DELETE", "path": "/todos/{id}" },
+      "expect": { "status": 204 }
+    },
+    {
+      "name": "it is gone",
+      "request": { "method": "GET", "path": "/todos/{id}" },
+      "expect": { "status": 404 }
+    }
+  ]
+}

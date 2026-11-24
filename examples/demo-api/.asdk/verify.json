@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "launch": {
+    "run": ["node", "src/server.mjs"],
+    "env": { "PORT": "{port}" },
+    "ready": { "path": "/todos", "status": 200 },
+    "timeout_ms": 10000
+  },
+  "scenarios_dir": "test/scenarios",
+  "verifies": "ui",
+  "record_bodies": true
+}

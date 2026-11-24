@@ -88,7 +88,7 @@ export function deriveTasks(events) {
     const d = e.data ?? {};
     switch (e.event) {
       case 'task.verify':
-        t.verifications.push({ ts: e.ts, check: d.check, result: d.result, executor: d.executor, sha: d.sha, gate: d.gate });
+        t.verifications.push({ ts: e.ts, check: d.check, result: d.result, executor: d.executor, sha: d.sha, gate: d.gate, evidence: d.evidence });
         break;
       case 'task.block':
         if (t.status !== 'active') {
@@ -263,7 +263,8 @@ export function startTask(env, { taskId, cwd, projectId, type, risk, title, esti
   });
 }
 
-export function verifyTask(env, { taskId, check, result, executor, sha, gate, cwd, source = 'cli', now }) {
+/** Records a check on a task. `evidence` is the SHA-256 of an evidence file the check wrote. */
+export function verifyTask(env, { taskId, check, result, executor, sha, gate, evidence, cwd, source = 'cli', now }) {
   oneOf(check, CHECKS, '--check');
   oneOf(result, RESULTS, '--result');
   oneOf(executor, EXECUTORS, '--executor');
@@ -272,12 +273,13 @@ export function verifyTask(env, { taskId, check, result, executor, sha, gate, cw
   if (commit && !/^([0-9a-f]{40}|[0-9a-f]{64})$/.test(commit)) throw usageError(`--sha must be a full commit hash`);
   // A review vouches for one exact commit; without it the merge rules could not use it.
   if (check === 'review' && !commit) throw usageError('a review needs the commit it reviewed: pass --sha or run it inside the repository');
+  if (evidence !== undefined && !/^[0-9a-f]{64}$/.test(evidence)) throw usageError('evidence must be a SHA-256 hex digest');
 
   return withCollectorLock(env, 'tasks', () => {
     const t = openTask(env, taskId);
     return appendEvent(
       env,
-      makeEvent({ source, event: 'task.verify', project_id: t.project_id, task_id: taskId, data: { check, result, executor, sha: commit ?? undefined, gate } }, now),
+      makeEvent({ source, event: 'task.verify', project_id: t.project_id, task_id: taskId, data: { check, result, executor, sha: commit ?? undefined, gate, evidence } }, now),
     );
   });
 }

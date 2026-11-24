@@ -97,7 +97,7 @@ test('headline, coverage, verifications and usage tables', () => {
   assert.deepEqual(r.aggregate, { tasks: 1, accepted: 1, estimate_h: 3.6, human_h: 0.5, efficiency: 7.2 });
   assert.deepEqual(r.coverage, { sessions: 3, not_harvested: 1, output_tokens: 1300, in_tasks: 1000, share_in_tasks: 0.77 });
   assert.equal(r.verifications.length, 4); // DEMO-009 was never started: its check is not a task check
-  assert.deepEqual(r.verifications[0], { task_id: 'DEMO-001', ts: T(60), check: 'unit', result: 'fail', executor: 'script', gate: 'G1', sha: null });
+  assert.deepEqual(r.verifications[0], { task_id: 'DEMO-001', ts: T(60), check: 'unit', result: 'fail', executor: 'script', gate: 'G1', sha: null, evidence: null });
   assert.deepEqual(
     r.usageRows.map((u) => [u.task_id, u.model, u.output_tokens]),
     [

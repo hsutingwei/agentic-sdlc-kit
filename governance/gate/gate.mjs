@@ -50,7 +50,23 @@ export function loadGateConfig(top) {
       if (hasRun === hasBuiltin) fail(`gate ${name}, step "${step.name}": needs exactly one of "run" (argv array) or a known "builtin"`);
     }
   }
+  const push = config.push_check;
+  if (push !== undefined) {
+    if (!push || typeof push !== 'object') fail('"push_check" must be an object');
+    if (!Object.hasOwn(config.gates, push.gate ?? '')) fail('push_check: "gate" must name a configured gate');
+    for (const key of ['remote', 'branch']) {
+      if (push[key] !== undefined && !/^[A-Za-z0-9][A-Za-z0-9_./-]*$/.test(push[key])) fail(`push_check: "${key}" has invalid characters`);
+    }
+    if (push.runners !== undefined && (!Array.isArray(push.runners) || !push.runners.every((r) => NAME.test(r)))) fail('push_check: "runners" must be a list of runner ids');
+  }
   return config;
+}
+
+/** The push check settings of a gate configuration, with defaults; null when not configured. */
+export function pushCheckConfig(config) {
+  const push = config.push_check;
+  if (!push) return null;
+  return { remote: push.remote ?? 'origin', branch: push.branch ?? 'main', gate: push.gate, runners: push.runners ?? null };
 }
 
 /** Child environment for gate steps: an outer node --test must not capture the step's own test run. */

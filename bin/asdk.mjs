@@ -13,6 +13,7 @@ const COMMANDS = {
   disable: { load: () => import('../collector/cli/recording.mjs'), fn: 'runDisable', help: 'pause recording without uninstalling hooks' },
   task: { load: () => import('../collector/cli/task.mjs'), fn: 'runTask', help: 'start, verify and end tasks' },
   human: { load: () => import('../collector/cli/human.mjs'), fn: 'runHuman', help: 'time spent by a person on a task' },
+  'push-check': { load: () => import('../collector/cli/push-check.mjs'), fn: 'runPushCheck', help: 'compare pushes to the main branch with gate passes' },
   quota: { load: () => import('../collector/cli/quota.mjs'), fn: 'runQuota', help: 'quota snapshots, plan changes and status' },
   report: { load: () => import('../collector/cli/report.mjs'), fn: 'runReport', help: 'write tasks.csv and summary.md' },
   usage: { load: () => import('../collector/cli/usage.mjs'), fn: 'runUsage', help: 'token usage by model and agent type' },

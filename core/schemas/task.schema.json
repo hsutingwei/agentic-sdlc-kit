@@ -14,6 +14,12 @@
     "type": { "$ref": "#/$defs/task_type" },
     "risk": { "$ref": "#/$defs/risk" },
     "status": { "enum": ["active", "blocked", "ended"] },
+    "profile": {
+      "description": "Plan profile the task was started with (model, effort and verifiers per role). How it was chosen is recorded on the start event.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "maxLength": 64
+    },
     "estimate_hours": {
       "description": "Human estimate of the effort WITHOUT AI assistance, recorded at start. Baseline of the efficiency score.",
       "type": "number",

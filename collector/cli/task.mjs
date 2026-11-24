@@ -2,14 +2,17 @@
 
 import { parse, requireOption } from '../../core/cli.mjs';
 import { usageError } from '../../core/errors.mjs';
+import { repoInfo } from '../../core/git.mjs';
+import { loadProfiles, selectProfile } from '../../governance/profiles/profiles.mjs';
 import { humanStatus } from '../lib/human.mjs';
+import { findProject, loadConfig } from '../lib/registry.mjs';
 import { readEvents } from '../lib/store.mjs';
 import { endTask, escalateTask, loadTasks, startTask, toContract, updateTask, verifyTask } from '../lib/tasks.mjs';
 
 const USAGE = {
   start:
     'asdk task start <ID> --type <bugfix|feature|refactor|test|docs|config|investigation> --risk <low|medium|high|critical> ' +
-    '[--estimate <hours without AI>] [--title <text>] [--fixes <ID,...>] [--project <id>]',
+    '[--estimate <hours without AI>] [--title <text>] [--fixes <ID,...>] [--project <id>] [--profile <name>]',
   verify: 'asdk task verify <ID> --check <build|unit|integration|ui|review|acceptance> --result <pass|fail|error> --executor <script|agent|human> [--sha <commit>]',
   update: 'asdk task update <ID> --state <blocked|resumed> --reason <text> [--waiting-on <human|ai|external|quota|other>]',
   escalate: 'asdk task escalate <ID> --kind <takeover|repeated_failure|risk_decision> --reason <text>',
@@ -41,6 +44,21 @@ function taskId(positionals, usage) {
   return positionals[0];
 }
 
+/**
+ * The plan profile a new task runs with: --profile, else the one for the current plan, else none.
+ * Profiles are read from the task's project, so its own .asdk/profiles.json applies.
+ */
+function startProfile(env, cwd, values) {
+  const top = values.project ? findProject(loadConfig(env), values.project)?.root : repoInfo(cwd, env)?.toplevel;
+  const profiles = loadProfiles(top);
+  if (values.profile !== undefined) return { ...selectProfile(env, profiles, { profile: values.profile }), source: 'manual' };
+  try {
+    return { ...selectProfile(env, profiles), source: 'auto' };
+  } catch {
+    return null; // no plan recorded, or a plan without a profile
+  }
+}
+
 export async function runTask(argv, { env, cwd, out, err }) {
   const [sub, ...rest] = argv;
   switch (sub) {
@@ -48,7 +66,7 @@ export async function runTask(argv, { env, cwd, out, err }) {
       const u = USAGE.start;
       const { values, positionals } = parse(
         rest,
-        { type: { type: 'string' }, risk: { type: 'string' }, estimate: { type: 'string' }, title: { type: 'string' }, fixes: { type: 'string' }, project: { type: 'string' } },
+        { type: { type: 'string' }, risk: { type: 'string' }, estimate: { type: 'string' }, title: { type: 'string' }, fixes: { type: 'string' }, project: { type: 'string' }, profile: { type: 'string' } },
         { positionals: 1, usage: u },
       );
       let estimateHours;
@@ -56,6 +74,7 @@ export async function runTask(argv, { env, cwd, out, err }) {
         estimateHours = Number(values.estimate);
         if (!Number.isFinite(estimateHours) || estimateHours <= 0) throw usageError('--estimate must be a positive number of hours');
       }
+      const profile = startProfile(env, cwd, values);
       const e = startTask(env, {
         taskId: taskId(positionals, u),
         cwd,
@@ -65,8 +84,11 @@ export async function runTask(argv, { env, cwd, out, err }) {
         title: values.title,
         estimateHours,
         fixes: values.fixes ? values.fixes.split(',').map((s) => s.trim()).filter(Boolean) : [],
+        profile: profile?.name,
+        profileSource: profile?.source,
       });
-      out(`started ${e.task_id} (${e.project_id})`);
+      const how = profile ? `, profile ${profile.name} (${profile.source === 'manual' ? 'chosen' : `from plan ${profile.plan}`})` : ', no profile (no plan known)';
+      out(`started ${e.task_id} (${e.project_id})${how}`);
       return 0;
     }
     case 'verify': {

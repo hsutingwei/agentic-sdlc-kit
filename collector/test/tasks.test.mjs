@@ -4,6 +4,7 @@ import { appendFileSync } from 'node:fs';
 import path from 'node:path';
 import { createSandbox, git, makeRepo, runAsdk } from '../../test/helpers/sandbox.mjs';
 import { validateContract } from '../../core/validate.mjs';
+import { changePlan } from '../lib/quota.mjs';
 import { registerProject } from '../lib/registry.mjs';
 import { appendEvent, eventsDir, makeEvent } from '../lib/store.mjs';
 import { deriveTasks, endTask, escalateTask, loadTasks, startTask, toContract, updateTask, verifyTask } from '../lib/tasks.mjs';
@@ -178,4 +179,27 @@ test('an event from a clock a few milliseconds behind still belongs to its task'
   const { tasks, orphans } = deriveTasks([hook, start]);
   assert.deepEqual([...tasks.get('DEMO-001').sessions], ['s-1']);
   assert.deepEqual(orphans, []);
+});
+
+test('task start records the plan profile: chosen, from the current plan, or none', (t) => {
+  const { sb, root } = setup(t, 'task-profile');
+  const start = (id, extra = []) => runAsdk(sb, ['task', 'start', id, '--type', 'feature', '--risk', 'low', ...extra], { cwd: root });
+  assert.match(start('DEMO-001').stdout, /started DEMO-001 \(demo-api\), no profile \(no plan known\)/);
+  changePlan(sb.env, { plan: 'max-5x' });
+  assert.match(start('DEMO-002').stdout, /profile max \(from plan max-5x\)/);
+  assert.match(start('DEMO-003', ['--profile', 'ultra']).stdout, /profile ultra \(chosen\)/);
+  const bad = start('DEMO-004', ['--profile', 'gold']);
+  assert.equal(bad.status, 2);
+  assert.match(bad.stderr, /unknown profile "gold"/);
+
+  const tasks = loadTasks(sb.env);
+  assert.deepEqual(
+    ['DEMO-001', 'DEMO-002', 'DEMO-003'].map((id) => [tasks.get(id).profile, tasks.get(id).profile_source]),
+    [[undefined, undefined], ['max', 'auto'], ['ultra', 'manual']],
+  );
+  assert.equal(tasks.has('DEMO-004'), false);
+  const view = toContract(tasks.get('DEMO-003'));
+  assert.equal(view.profile, 'ultra');
+  assert.deepEqual(validateContract('task', view).errors, []);
+  assert.throws(() => startTask(sb.env, { taskId: 'DEMO-005', cwd: root, type: 'feature', risk: 'low', profile: 'Bad Name' }), /invalid task/);
 });

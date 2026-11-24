@@ -57,6 +57,8 @@ export function deriveTasks(events) {
       project_id: e.project_id ?? null,
       type: d.type,
       risk: d.risk,
+      profile: d.profile,
+      profile_source: d.profile_source,
       title: d.title,
       estimate_hours: d.estimate_hours,
       fixes: d.fixes ? String(d.fixes).split(',') : [],
@@ -144,6 +146,7 @@ export function toContract(t) {
     title: t.title,
     type: t.type,
     risk: t.risk,
+    profile: t.profile,
     status: t.status,
     estimate_hours: t.estimate_hours,
     fixes: t.fixes.length ? t.fixes : undefined,
@@ -204,7 +207,11 @@ const oneOf = (value, allowed, label) => {
   if (!allowed.includes(value)) throw usageError(`${label} must be one of: ${allowed.join(', ')}`);
 };
 
-export function startTask(env, { taskId, cwd, projectId, type, risk, title, estimateHours, fixes = [], now }) {
+/**
+ * Starts a task. `profile` is the plan profile it runs with; `profileSource` says how it was
+ * chosen: manual (--profile) or auto (from the current plan).
+ */
+export function startTask(env, { taskId, cwd, projectId, type, risk, title, estimateHours, fixes = [], profile, profileSource, now }) {
   if (!TASK_ID.test(taskId ?? '')) throw usageError(`invalid task id "${taskId}" (expected something like DEMO-001)`);
   oneOf(type, TASK_TYPES, '--type');
   oneOf(risk, RISKS, '--risk');
@@ -219,6 +226,7 @@ export function startTask(env, { taskId, cwd, projectId, type, risk, title, esti
     title,
     type,
     risk,
+    profile,
     status: 'active',
     estimate_hours: estimateHours,
     fixes,
@@ -239,7 +247,15 @@ export function startTask(env, { taskId, cwd, projectId, type, risk, title, esti
           project_id: project.project_id,
           project_source: project.project_source,
           task_id: taskId,
-          data: { type, risk, title, estimate_hours: estimateHours, fixes: fixes.length ? fixes.join(',') : undefined },
+          data: {
+            type,
+            risk,
+            title,
+            estimate_hours: estimateHours,
+            fixes: fixes.length ? fixes.join(',') : undefined,
+            profile,
+            profile_source: profile ? (profileSource ?? 'manual') : undefined,
+          },
         },
         now,
       ),

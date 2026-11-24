@@ -80,7 +80,7 @@ export function writeSampleData(env) {
 
   for (const task of TASKS) {
     const cli = (minutes, event, data) => appendEvent(env, makeEvent({ source: 'cli', event, project_id: task.project, task_id: task.id, data }, at(task.day, minutes)));
-    cli(0, 'task.start', { type: task.type, risk: task.risk, title: task.title, estimate_hours: task.estimate, fixes: task.fixes });
+    cli(0, 'task.start', { type: task.type, risk: task.risk, title: task.title, estimate_hours: task.estimate, fixes: task.fixes, profile: 'max', profile_source: 'manual' });
 
     // Human work, laid out around the AI turns.
     let clock = 1;

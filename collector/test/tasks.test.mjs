@@ -1,9 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { appendFileSync } from 'node:fs';
+import path from 'node:path';
 import { createSandbox, git, makeRepo, runAsdk } from '../../test/helpers/sandbox.mjs';
 import { validateContract } from '../../core/validate.mjs';
 import { registerProject } from '../lib/registry.mjs';
-import { appendEvent, makeEvent } from '../lib/store.mjs';
+import { appendEvent, eventsDir, makeEvent } from '../lib/store.mjs';
 import { deriveTasks, endTask, loadTasks, startTask, toContract, verifyTask } from '../lib/tasks.mjs';
 
 function setup(t, label) {
@@ -98,4 +100,23 @@ test('hook events of other tasks do not leak into a task', (t) => {
   start(sb, root);
   appendEvent(sb.env, makeEvent({ source: 'hook', event: 'SessionStart', session_id: 's-9', task_id: 'DEMO-002' }), 's-9');
   assert.equal(loadTasks(sb.env).get('DEMO-001').sessions.size, 0);
+});
+
+test('a damaged task record line stops task changes and names the place', (t) => {
+  const { sb, root } = setup(t, 'task-damaged');
+  start(sb, root);
+  const dir = path.join(eventsDir(sb.env), new Date().toISOString().slice(0, 7));
+  appendFileSync(path.join(dir, '_manual.jsonl'), '{"event":"task.en\n');
+  // A damaged hook stream does not matter for task checks.
+  appendFileSync(path.join(dir, 'some-session.jsonl'), 'torn\n');
+
+  assert.throws(
+    () => verifyTask(sb.env, { taskId: 'DEMO-001', check: 'unit', result: 'pass', executor: 'script', cwd: root }),
+    (err) => err.exitCode === 2 && /1 damaged line\(s\): events\/\d{4}-\d{2}\/_manual\.jsonl:2\b/.test(err.message),
+  );
+  const r = runAsdk(sb, ['task', 'end', 'DEMO-001', '--outcome', 'abandoned']);
+  assert.equal(r.status, 2);
+  assert.match(r.stderr, /_manual\.jsonl:2/);
+  // Listing still works: it reads, it does not change anything.
+  assert.equal(runAsdk(sb, ['task', 'list']).status, 0);
 });

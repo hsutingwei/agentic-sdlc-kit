@@ -5,7 +5,7 @@
 // only the manual stream, where every task record is written; hook streams only
 // add sessions and sub-agents, which reports need and checks do not.
 
-import { ruleError, usageError } from '../../core/errors.mjs';
+import { AsdkError, ruleError, usageError } from '../../core/errors.mjs';
 import { headSha } from '../../core/git.mjs';
 import { validateContract } from '../../core/validate.mjs';
 import { withCollectorLock } from './locks.mjs';
@@ -126,9 +126,22 @@ export function loadTasks(env) {
   return deriveTasks(readEvents(env).events).tasks;
 }
 
-/** Task records from the manual stream only: enough to check a change, and fast however many hook events exist. */
+/**
+ * Task records from the manual stream only: enough to check a change, and fast however many hook events exist.
+ * Refuses when a line there is damaged: it could be a hidden task start or end, and a check that cannot
+ * see it would allow a change it should refuse.
+ */
 export function loadTaskRecords(env) {
-  return deriveTasks(readEvents(env, { streams: [MANUAL_STREAM] }).events).tasks;
+  const { events, damaged } = readEvents(env, { streams: [MANUAL_STREAM] });
+  if (damaged.length > 0) {
+    const where = damaged.slice(0, 5).map((d) => `events/${d.file}:${d.line}`);
+    throw new AsdkError(
+      `task records have ${damaged.length} damaged line(s): ${where.join(', ')}${damaged.length > 5 ? ', …' : ''}. ` +
+        'A damaged line can hide a task start or end, so task changes are refused until it is repaired or moved to another file.',
+      2,
+    );
+  }
+  return deriveTasks(events).tasks;
 }
 
 function activeTask(env, taskId) {

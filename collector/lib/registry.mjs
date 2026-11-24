@@ -33,8 +33,14 @@ export function loadConfig(env = process.env) {
       throw usageError(`${file}: every project needs an id like "demo-api" and a root path`);
     }
   }
+  if (config.record_unregistered !== undefined && typeof config.record_unregistered !== 'boolean') {
+    throw usageError(`${file}: "record_unregistered" must be true or false`);
+  }
   return config;
 }
+
+/** Whether hook events outside every registered project are kept (default true: needed for task coverage). */
+export const recordsUnregistered = (config) => config.record_unregistered !== false;
 
 export function saveConfig(env, config) {
   const file = configPath(env);

@@ -9,7 +9,7 @@
 import { appendFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { dataPath } from '../../collector/lib/paths.mjs';
-import { resolveProject } from '../../collector/lib/registry.mjs';
+import { loadConfig, recordsUnregistered, resolveProject } from '../../collector/lib/registry.mjs';
 import { isRecordingDisabled } from '../../collector/lib/recording.mjs';
 import { readWorktreeMarker } from '../../collector/lib/state.mjs';
 import { appendEvent, makeEvent } from '../../collector/lib/store.mjs';
@@ -32,7 +32,7 @@ const SIZE_FIELDS = {
 const sizeOf = (value) => (typeof value === 'string' ? [...value].length : Buffer.byteLength(JSON.stringify(value) ?? '', 'utf8'));
 
 /** Maps a Claude Code hook payload to a kit event, or returns null when it cannot be attributed to an event name. */
-export function payloadToEvent(payload, { env = process.env, cwd = process.cwd(), now } = {}) {
+export function payloadToEvent(payload, { env = process.env, cwd = process.cwd(), now, config } = {}) {
   if (!payload || typeof payload !== 'object') return null;
   const name = payload.hook_event_name;
   if (typeof name !== 'string' || !EVENT_NAME.test(name)) return null;
@@ -54,7 +54,7 @@ export function payloadToEvent(payload, { env = process.env, cwd = process.cwd()
   }
 
   const where = typeof payload.cwd === 'string' && payload.cwd !== '' ? payload.cwd : cwd;
-  const project = resolveProject(where, { env });
+  const project = resolveProject(where, { env, config: config ?? loadConfig(env) });
   const marker = project.project_id && project.worktree ? readWorktreeMarker(env, project.project_id, project.worktree) : null;
 
   const agent = typeof payload.agent_id === 'string' && ID.test(payload.agent_id) ? { id: payload.agent_id } : undefined;
@@ -142,11 +142,13 @@ export async function runHook(_argv, { env, cwd, stdin = process.stdin }) {
       logError(env, `payload is not valid JSON (${raw.length} chars)`);
       return 0;
     }
-    const event = payloadToEvent(payload, { env, cwd });
+    const config = loadConfig(env);
+    const event = payloadToEvent(payload, { env, cwd, config });
     if (!event) {
       logError(env, 'payload has no usable hook_event_name');
       return 0;
     }
+    if (event.project_id === null && !recordsUnregistered(config)) return 0;
     appendEvent(env, event, event.session_id ?? 'no-session');
   } catch (err) {
     logError(env, err instanceof Error ? err.message : 'unknown error');

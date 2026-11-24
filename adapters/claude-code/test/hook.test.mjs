@@ -5,7 +5,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { ASDK, createSandbox, git, makeRepo, runAsdk } from '../../../test/helpers/sandbox.mjs';
 import { dataPath } from '../../../collector/lib/paths.mjs';
-import { registerProject } from '../../../collector/lib/registry.mjs';
+import { loadConfig, registerProject, saveConfig } from '../../../collector/lib/registry.mjs';
 import { writeWorktreeMarker } from '../../../collector/lib/state.mjs';
 import { readEvents } from '../../../collector/lib/store.mjs';
 import { payloadToEvent } from '../hook.mjs';
@@ -144,4 +144,21 @@ test('the hook gives up when stdin is never closed', async (t) => {
   assert.ok(Date.now() - started < 4000, 'exits well before the default timeout');
   assert.match(readFileSync(dataPath(sb.env, 'collector-errors.log'), 'utf8'), /stdin stayed open for 300 ms/);
   assert.equal(readEvents(sb.env).events.length, 0);
+});
+
+test('events outside registered projects are kept unless record_unregistered is false', (t) => {
+  const { sb, root } = setup(t, 'hook-unregistered');
+  const send = (cwd) => runAsdk(sb, ['hook'], { input: JSON.stringify({ session_id: 's', cwd, hook_event_name: 'Stop' }) });
+  const projects = () => readEvents(sb.env).events.map((e) => e.project_id);
+
+  assert.equal(send(sb.home).status, 0);
+  assert.deepEqual(projects(), [null]);
+
+  saveConfig(sb.env, { ...loadConfig(sb.env), record_unregistered: false });
+  assert.equal(send(sb.home).status, 0);
+  assert.equal(send(root).status, 0);
+  assert.deepEqual(projects(), [null, 'demo-api']);
+
+  saveConfig(sb.env, { ...loadConfig(sb.env), record_unregistered: 'no' });
+  assert.throws(() => loadConfig(sb.env), /must be true or false/);
 });

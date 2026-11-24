@@ -109,3 +109,28 @@ test('push-check needs a configured project and reports usage errors', (t) => {
   assert.equal(r.status, 2);
   assert.match(r.stderr, /must name a configured gate/);
 });
+
+test('with block on, the hook refuses a push without a passing gate and records nothing', (t) => {
+  const { sb, root, commit, push, gate } = setup(t, 'push-block');
+  writeFileSync(path.join(root, '.asdk', 'gates.json'), JSON.stringify({ ...GATES, push_check: { ...GATES.push_check, block: true } }));
+  git(sb, root, 'commit', '-q', '-am', 'chore: block pushes without G1');
+  assert.equal(runAsdk(sb, ['push-check', 'install-hook'], { cwd: root }).status, 0);
+  const pushes = () => readEvents(sb.env).events.filter((e) => e.event === 'git.push').length;
+
+  const sha = commit('a.txt');
+  const refused = push();
+  assert.notEqual(refused.status, 0, 'git must refuse the push');
+  assert.match(refused.stderr, new RegExp(`${sha.slice(0, 12)} has no passing G1 run; run "asdk gate run G1"`));
+  assert.match(refused.stderr, /push refused \(push_check\.block is on/);
+  assert.equal(pushes(), 0);
+  assert.notEqual(git(sb, root, 'rev-parse', 'origin/main').trim(), sha);
+
+  assert.equal(gate(), 'pass');
+  const ok = push();
+  assert.equal(ok.status, 0, ok.stderr);
+  assert.equal(pushes(), 1);
+  assert.equal(git(sb, root, 'rev-parse', 'origin/main').trim(), sha);
+
+  writeFileSync(path.join(root, '.asdk', 'gates.json'), JSON.stringify({ ...GATES, push_check: { ...GATES.push_check, block: 'yes' } }));
+  assert.match(runAsdk(sb, ['push-check'], { cwd: root }).stderr, /"block" must be true or false/);
+});

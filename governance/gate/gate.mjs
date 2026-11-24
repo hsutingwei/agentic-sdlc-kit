@@ -61,6 +61,7 @@ export function loadGateConfig(top) {
       if (push[key] !== undefined && !/^[A-Za-z0-9][A-Za-z0-9_./-]*$/.test(push[key])) fail(`push_check: "${key}" has invalid characters`);
     }
     if (push.runners !== undefined && (!Array.isArray(push.runners) || !push.runners.every((r) => NAME.test(r)))) fail('push_check: "runners" must be a list of runner ids');
+    if (push.block !== undefined && typeof push.block !== 'boolean') fail('push_check: "block" must be true or false');
   }
   if (config.merge_policy !== undefined) validateMergePolicy(config.merge_policy, config.gates, fail);
   return config;
@@ -70,7 +71,7 @@ export function loadGateConfig(top) {
 export function pushCheckConfig(config) {
   const push = config.push_check;
   if (!push) return null;
-  return { remote: push.remote ?? 'origin', branch: push.branch ?? 'main', gate: push.gate, runners: push.runners ?? null };
+  return { remote: push.remote ?? 'origin', branch: push.branch ?? 'main', gate: push.gate, runners: push.runners ?? null, block: push.block === true };
 }
 
 /** Child environment for gate steps: an outer node --test must not capture the step's own test run. */

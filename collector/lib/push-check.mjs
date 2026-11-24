@@ -43,22 +43,33 @@ function projectContext(env, { projectId, cwd }) {
 }
 
 /**
- * Called by the pre-push hook: records pushes to the checked branch and returns warnings for commits
- * without a passing gate. Never throws for the hook's sake: problems become warnings.
+ * Called by the pre-push hook: checks each commit pushed to the checked branch for a passing gate
+ * run. Without one it warns, or with `"block": true` refuses the push; a refused push is not
+ * recorded. Pushes that go ahead are recorded as git.push events.
  * @param {string} refsText the hook's stdin: "<local ref> <local sha> <remote ref> <remote sha>" per line
+ * @returns {{ warnings: string[], refused: string[] }}
  */
 export function recordPush(env, { cwd, remote, refsText, now = new Date() }) {
-  const warnings = [];
+  const result = { warnings: [], refused: [] };
   let ctx;
   try {
     ctx = projectContext(env, { cwd });
   } catch {
-    return warnings; // not a checked project: nothing to do
+    return result; // not a checked project: nothing to do
   }
-  if (remote !== ctx.settings.remote) return warnings;
+  if (remote !== ctx.settings.remote) return result;
+  const pushes = [];
   for (const line of refsText.split(/\r?\n/)) {
     const [, localSha, remoteRef, remoteSha] = line.trim().split(/\s+/);
     if (remoteRef !== `refs/heads/${ctx.settings.branch}` || !SHA.test(localSha ?? '') || ZERO.test(localSha)) continue;
+    pushes.push({ localSha, remoteSha });
+    if (gateRuns(env, ctx, localSha).some((r) => r.result === 'pass')) continue;
+    const { gate, branch } = ctx.settings;
+    if (ctx.settings.block) result.refused.push(`${localSha.slice(0, 12)} has no passing ${gate} run; run "asdk gate run ${gate}" on that commit, then push again`);
+    else result.warnings.push(`${localSha.slice(0, 12)} is being pushed to ${branch} without a passing ${gate} run (asdk gate run ${gate})`);
+  }
+  if (result.refused.length) return result; // git refuses the whole push
+  for (const { localSha, remoteSha } of pushes) {
     appendEvent(
       env,
       makeEvent(
@@ -71,12 +82,8 @@ export function recordPush(env, { cwd, remote, refsText, now = new Date() }) {
         now,
       ),
     );
-    const runs = gateRuns(env, ctx, localSha);
-    if (!runs.some((r) => r.result === 'pass')) {
-      warnings.push(`${localSha.slice(0, 12)} is being pushed to ${ctx.settings.branch} without a passing ${ctx.settings.gate} run (asdk gate run ${ctx.settings.gate})`);
-    }
   }
-  return warnings;
+  return result;
 }
 
 /** Passing and failing runs of the configured gate (and runners) for one commit. */

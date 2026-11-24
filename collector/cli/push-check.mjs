@@ -21,12 +21,20 @@ async function readStdin() {
 export async function runPushCheck(argv, { env, cwd, out, err }) {
   const [sub, ...rest] = argv;
   if (sub === 'record') {
-    // From the pre-push hook: never block the push in this phase, only warn.
+    // From the pre-push hook. It refuses a push only when block is on and it found no
+    // passing run; if the check itself breaks, the push goes ahead with a warning.
     try {
       const [remote] = rest;
-      for (const w of recordPush(env, { cwd, remote, refsText: await readStdin() })) err(`asdk push-check: warning: ${w}`);
+      const { warnings, refused } = recordPush(env, { cwd, remote, refsText: await readStdin() });
+      for (const w of warnings) err(`asdk push-check: warning: ${w}`);
+      if (refused.length) {
+        for (const r of refused) err(`asdk push-check: ${r}`);
+        err('asdk push-check: push refused (push_check.block is on in .asdk/gates.json).');
+        err('A human can still push with "git push --no-verify"; asdk push-check then shows the commit as missing.');
+        return 1;
+      }
     } catch (e) {
-      err(`asdk push-check: could not record the push (${e.message})`);
+      err(`asdk push-check: could not check the push (${e.message}); not blocking it`);
     }
     return 0;
   }

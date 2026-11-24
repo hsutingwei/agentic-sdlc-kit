@@ -55,7 +55,7 @@ file contents or paths. Data stays in `~/.agentic-metrics/`.
 | Module | Purpose | Phase |
 |---|---|---|
 | [`core/`](core/) | Contracts shared by every module (task, task brief, agent report, gate summary, event, usage) and a dependency-free validator | P0 ✅ |
-| [`collector/`](collector/) | Records each task from start to acceptance: hook events, task lifecycle, token usage, reports | P1–P5 |
+| [`collector/`](collector/) | Records each task from start to acceptance: hook events, task lifecycle, token usage, reports, push check | P1–P5 ✅ |
 | [`governance/`](governance/) | Agent instruction templates, permission examples, risk-based gates (G1/G2/G3) | P6 |
 | [`orchestration/`](orchestration/) | Planner workflow, dispatch to sub-agents by model tier, worktree pool for parallel tasks | P1, P7 |
 | [`skill-regression/`](skill-regression/) | Regression tests for reviewer agents and skills with seeded-defect cases | P8 |
@@ -64,7 +64,21 @@ file contents or paths. Data stays in `~/.agentic-metrics/`.
 
 ## Sample report
 
-_TBD (P5): a table generated from fictional sample data by `tools/make-sample.mjs`._
+From [examples/sample-report](examples/sample-report/), built from **fictional** data by
+`tools/make-sample.mjs` with the kit's own report code (five of twelve rows shown):
+
+> **3.31×** over 9 Complete task(s): 30.1 h of quality-weighted estimated work (7 accepted) for 9.09 human hours. Rejected and abandoned tasks count their hours and earn nothing.
+
+| Task | Project | Outcome | Lead (h) | AI (h) | Human (h) | Waiting on human (h) | Estimate (h) | Efficiency | Checks | First pass | Escalations | Output tokens | Data quality |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| DEMO-001 | demo-api | accepted | 4 | 1.17 | 0.92 | – | 6 | 6.52 × 0.6 = 3.91 | 3 | no | 0 | 3,711 | Complete |
+| DEMO-003 | demo-web | accepted | 6 | 2.17 | 1.92 | – | 8 | 4.17 × 0.8 = 3.33 | 4 | no | 1 | 11,645 | Complete |
+| DEMO-007 | demo-web | rejected | 3.33 | 1.33 | 1.08 | – | 3 | 0 | 1 | yes | 0 | 9,078 | Complete |
+| DEMO-009 | demo-web | accepted | 1 | 0.25 | 0.25 | – | 1 | 4 | 2 | yes | 0 | 0 | Partial |
+| DEMO-011 | demo-web | deferred | 2 | 0.83 | 0.33 | – | 5 | – | 0 | – | 0 | 9,606 | Missing |
+
+Every row has a data-quality grade; only `Complete` rows count in the headline.
+Definitions and limits: [docs/metrics.md](docs/metrics.md).
 
 ## Design principles
 

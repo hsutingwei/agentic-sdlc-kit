@@ -130,12 +130,14 @@ asdk quota snapshot --window five_hour=12 --window seven_day=40 --plan max-5x
 ## 8. Read the scorecard
 
 ```sh
-asdk report
+asdk report --harvest
 ```
 
-Open `~/.agentic-metrics/reports/summary.md`. With your time recorded the row is
-`Complete` and shows your hours. The efficiency column stays empty until P5,
-which adds the quality discounts; it is never guessed.
+Open `~/.agentic-metrics/reports/summary.md` (the CSV files are next to it). With
+your time recorded and the session harvested the row is `Complete`, and its
+efficiency is the estimate divided by your hours times the quality factor; the
+failed first G1 run costs 0.1. See [metrics.md](metrics.md) for every column
+and flag, and [demo-run.md](demo-run.md) for the numbers of a real run.
 
 ## Clean up
 

@@ -1,14 +1,15 @@
 // Task lifecycle: start -> verify (any number) -> end.
 //
 // Task state is never stored on its own; it is derived from the event log every
-// time, so the log stays the single source of truth. (A local state cache and
-// lock files for concurrent writers come in a later phase.)
+// time, so the log stays the single source of truth. Checks before a change read
+// only the manual stream, where every task record is written; hook streams only
+// add sessions and sub-agents, which reports need and checks do not.
 
 import { ruleError, usageError } from '../../core/errors.mjs';
 import { headSha } from '../../core/git.mjs';
 import { validateContract } from '../../core/validate.mjs';
 import { resolveProject } from './registry.mjs';
-import { appendEvent, makeEvent, readEvents } from './store.mjs';
+import { appendEvent, MANUAL_STREAM, makeEvent, readEvents } from './store.mjs';
 
 export const TASK_TYPES = ['bugfix', 'feature', 'refactor', 'test', 'docs', 'config', 'investigation'];
 export const RISKS = ['low', 'medium', 'high', 'critical'];
@@ -119,13 +120,19 @@ export function toContract(t) {
   return view;
 }
 
+/** Every task with its sessions and sub-agents, for listing and reports. */
 export function loadTasks(env) {
   return deriveTasks(readEvents(env).events).tasks;
 }
 
+/** Task records from the manual stream only: enough to check a change, and fast however many hook events exist. */
+export function loadTaskRecords(env) {
+  return deriveTasks(readEvents(env, { streams: [MANUAL_STREAM] }).events).tasks;
+}
+
 function activeTask(env, taskId) {
   if (!TASK_ID.test(taskId ?? '')) throw usageError(`invalid task id "${taskId}" (expected something like DEMO-001)`);
-  const t = loadTasks(env).get(taskId);
+  const t = loadTaskRecords(env).get(taskId);
   if (!t) throw ruleError(`task ${taskId} has not been started`);
   if (t.status !== 'active') throw ruleError(`task ${taskId} is ${t.status}`);
   return t;
@@ -144,7 +151,7 @@ export function startTask(env, { taskId, cwd, projectId, type, risk, title, esti
   if (!projectId) project = resolveProject(cwd, { env });
   if (!project.project_id) throw usageError('not inside a registered project; run "asdk project add" or pass --project');
 
-  const existing = loadTasks(env).get(taskId);
+  const existing = loadTaskRecords(env).get(taskId);
   if (existing) throw ruleError(`task ${taskId} already exists (${existing.status}); use a new task id`);
 
   const draft = toContract({

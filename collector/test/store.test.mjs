@@ -50,3 +50,18 @@ test('damaged lines are counted, not fatal', (t) => {
   assert.equal(events.length, 1);
   assert.equal(invalid, 2);
 });
+
+test('damaged lines are located, and streams can be read on their own', (t) => {
+  const sb = createSandbox(t, 'store-streams');
+  appendEvent(sb.env, makeEvent({ source: 'cli', event: 'task.start' }, at('2026-11-02T00:00:00Z')));
+  appendEvent(sb.env, makeEvent({ source: 'hook', event: 'Stop', session_id: 's1' }, at('2026-11-02T00:01:00Z')), 's1');
+  appendFileSync(path.join(eventsDir(sb.env), '2026-11', 's1.jsonl'), 'torn\n');
+
+  const all = readEvents(sb.env);
+  assert.equal(all.events.length, 2);
+  assert.deepEqual(all.damaged, [{ file: '2026-11/s1.jsonl', line: 2 }]);
+
+  const manual = readEvents(sb.env, { streams: ['_manual'] });
+  assert.deepEqual(manual.events.map((e) => e.event), ['task.start']);
+  assert.deepEqual(manual.damaged, []);
+});

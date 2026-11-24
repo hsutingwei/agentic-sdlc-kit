@@ -15,7 +15,7 @@ import { git, headSha, isClean, tryGit } from '../../core/git.mjs';
 import { findProject, loadConfig, worktreeRoot } from '../../collector/lib/registry.mjs';
 import { readWorktreeMarker, removeWorktreeMarker, writeWorktreeMarker } from '../../collector/lib/state.mjs';
 import { appendEvent, makeEvent } from '../../collector/lib/store.mjs';
-import { loadTasks } from '../../collector/lib/tasks.mjs';
+import { loadTaskRecords } from '../../collector/lib/tasks.mjs';
 import { runGate } from '../../governance/gate/gate.mjs';
 
 const BRANCH_PREFIX = {
@@ -29,7 +29,7 @@ const BRANCH_PREFIX = {
 };
 
 function activeTask(env, taskId) {
-  const task = loadTasks(env).get(taskId);
+  const task = loadTaskRecords(env).get(taskId);
   if (!task) throw ruleError(`task ${taskId} has not been started`);
   if (task.status !== 'active') throw ruleError(`task ${taskId} is ${task.status}`);
   return task;

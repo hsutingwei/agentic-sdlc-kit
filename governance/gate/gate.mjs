@@ -16,7 +16,7 @@ import { dataPath } from '../../collector/lib/paths.mjs';
 import { resolveProject } from '../../collector/lib/registry.mjs';
 import { readWorktreeMarker } from '../../collector/lib/state.mjs';
 import { appendEvent, makeEvent } from '../../collector/lib/store.mjs';
-import { CHECKS, loadTasks, verifyTask } from '../../collector/lib/tasks.mjs';
+import { CHECKS, loadTaskRecords, verifyTask } from '../../collector/lib/tasks.mjs';
 
 const CONFIG_FILE = path.join('.asdk', 'gates.json');
 const KINDS = ['lint', 'build', 'unit', 'integration', 'ui', 'static'];
@@ -108,7 +108,7 @@ export function runGate(env, { gate, cwd, taskId, record = false, runner, now = 
   let task = null;
   const id = taskId ?? (project.worktree ? readWorktreeMarker(env, project.project_id, project.worktree)?.task_id : undefined);
   if (id) {
-    task = loadTasks(env).get(id) ?? null;
+    task = loadTaskRecords(env).get(id) ?? null;
     if (!task) throw usageError(`task ${id} has not been started`);
   }
   if (record && !task) throw usageError('--record needs a task: pass --task or run inside a task worktree');

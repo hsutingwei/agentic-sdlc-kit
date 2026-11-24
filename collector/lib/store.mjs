@@ -42,36 +42,48 @@ export function appendEvent(env, event, stream = MANUAL_STREAM) {
 }
 
 /**
- * Reads every event, oldest first. Lines that are not valid events are counted, not thrown:
- * one damaged line must not hide the rest of the history.
- * @returns {{ events: object[], invalid: number }}
+ * Reads events, oldest first. Lines that are not valid events are counted and located,
+ * not thrown: one damaged line must not hide the rest of the history.
+ * @param {{ streams?: string[] }} [options] only these streams (file names without .jsonl);
+ *   task checks read just `_manual`, which holds every task record, and skip the much larger hook streams
+ * @returns {{ events: object[], invalid: number, damaged: { file: string, line: number }[] }}
  */
-export function readEvents(env) {
+export function readEvents(env, { streams } = {}) {
   const root = eventsDir(env);
   const events = [];
+  const damaged = [];
   let invalid = 0;
-  if (!existsSync(root)) return { events, invalid };
+  if (!existsSync(root)) return { events, invalid, damaged };
+  const wanted = streams ? new Set(streams.map((name) => `${name}.jsonl`)) : null;
   for (const month of readdirSync(root).sort()) {
     const dir = path.join(root, month);
     let files;
     try {
-      files = readdirSync(dir).filter((f) => f.endsWith('.jsonl')).sort();
+      files = readdirSync(dir)
+        .filter((f) => f.endsWith('.jsonl') && (!wanted || wanted.has(f)))
+        .sort();
     } catch {
       continue;
     }
     for (const file of files) {
-      for (const line of readFileSync(path.join(dir, file), 'utf8').split('\n')) {
-        if (line.trim() === '') continue;
+      const lines = readFileSync(path.join(dir, file), 'utf8').split('\n');
+      lines.forEach((line, index) => {
+        if (line.trim() === '') return;
+        let event = null;
         try {
-          const event = JSON.parse(line);
-          if (validateContract('event', event).valid) events.push(event);
-          else invalid++;
+          event = JSON.parse(line);
         } catch {
-          invalid++;
+          // counted below
         }
-      }
+        if (event && validateContract('event', event).valid) {
+          events.push(event);
+        } else {
+          invalid++;
+          damaged.push({ file: `${month}/${file}`, line: index + 1 });
+        }
+      });
     }
   }
   events.sort((a, b) => (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : 0));
-  return { events, invalid };
+  return { events, invalid, damaged };
 }

@@ -1,11 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createSandbox, git, runNode } from './helpers/sandbox.mjs';
 import { loadConfig } from '../collector/lib/registry.mjs';
-import { ASDK_BIN, HOOK_EVENTS } from '../tools/lib/demo.mjs';
+import { HOOK_EVENTS, hookEntry } from '../adapters/claude-code/install.mjs';
 
 const SETUP = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'tools', 'demo-setup.mjs');
 
@@ -23,7 +23,8 @@ test('demo-setup creates a separate repo on dev with local hook settings and reg
 
   const settings = JSON.parse(readFileSync(path.join(target, '.claude', 'settings.local.json'), 'utf8'));
   assert.deepEqual(Object.keys(settings.hooks), HOOK_EVENTS);
-  assert.ok(settings.hooks.Stop[0].hooks[0].command.includes(ASDK_BIN.split(path.sep).join('/')));
+  assert.deepEqual(settings.hooks.Stop, [hookEntry({ env: sb.env })]);
+  assert.equal(existsSync(path.join(sb.home, '.claude', 'settings.json')), false, 'user settings untouched');
 
   const [project] = loadConfig(sb.env).projects;
   assert.deepEqual(project.worktree_copy_files, ['.claude/settings.local.json']);

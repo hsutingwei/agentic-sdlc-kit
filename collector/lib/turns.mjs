@@ -81,7 +81,7 @@ const hours = (intervals) => intervals.reduce((n, [a, b]) => n + (b - a), 0) / 3
  * AI time of one task.
  * @param {Map} perSession from sessionIntervals
  * @param {{ sessions: Set<string>, started_at: string, ended_at?: string }} task
- * @returns {{ ai_h: number, unpaired: number, concurrent: boolean }}
+ * @returns {{ ai_h: number, ai_ms: number, unpaired: number, concurrent: boolean }} ai_h is rounded; ai_ms is exact
  */
 export function taskAiTime(perSession, task, now = Date.now()) {
   const from = ms(task.started_at);
@@ -104,7 +104,8 @@ export function taskAiTime(perSession, task, now = Date.now()) {
       concurrent = clipped[i].intervals.some(([a, b]) => clipped[j].intervals.some(([c, d]) => a < d && c < b));
     }
   }
-  return { ai_h: Math.round(hours(union(clipped.flatMap((c) => c.intervals))) * 100) / 100, unpaired, concurrent };
+  const all = union(clipped.flatMap((c) => c.intervals));
+  return { ai_h: Math.round(hours(all) * 100) / 100, ai_ms: all.reduce((n, [a, b]) => n + (b - a), 0), unpaired, concurrent };
 }
 
 /** Hours of `intervals` ([fromIso, toIso?]) inside the task window; an open interval runs to the window's end. */

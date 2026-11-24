@@ -88,8 +88,11 @@ test('DEMO-001 end to end', (t) => {
   assert.equal(row.sessions, 1);
   assert.equal(row.subagents, 1);
   assert.equal(typeof row.human_h, 'number');
-  assert.equal(row.data_quality, 'Complete');
-  assert.deepEqual(row.flags, []);
+  assert.equal(typeof row.ai_h, 'number');
+  // The simulated agent writes no Claude Code transcript, so its token usage is
+  // honestly missing; a real run harvests it at task end (docs/demo-run.md).
+  assert.equal(row.data_quality, 'Partial');
+  assert.deepEqual(row.flags, ['usage_not_harvested']);
 
   // Nothing the agent typed or read was stored.
   const all = JSON.stringify(readEvents(sb.env).events);

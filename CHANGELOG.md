@@ -5,6 +5,15 @@ until 1.0 the command line and file formats may still change.
 
 ## Unreleased
 
+### Experiment E1, prepared (E1a)
+
+- `tools/experiment/`: twelve fictional tasks with hidden tests and reference
+  solutions, a seeded run plan, a runner that drives headless Claude Code with a
+  profile, a blind and timed review, and an analysis into CSV and tables
+  ([experiments.md](docs/experiments.md)).
+- A kit rule against invisible byte order marks in source, after sixteen were
+  found and replaced by the escape.
+
 ### Governance (P6a)
 
 - Templates: `AGENTS.md` (safety boundaries, plan before editing, verification

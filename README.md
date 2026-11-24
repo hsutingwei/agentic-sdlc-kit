@@ -56,11 +56,11 @@ file contents or paths. Data stays in `~/.agentic-metrics/`.
 |---|---|---|
 | [`core/`](core/) | Contracts shared by every module (task, task brief, agent report, gate summary, event, usage) and a dependency-free validator | P0 ✅ |
 | [`collector/`](collector/) | Records each task from start to acceptance: hook events, task lifecycle, token usage, reports, push check | P1–P5 ✅ |
-| [`governance/`](governance/) | Agent instruction templates, permission examples, risk-based gates (G1/G2/G3) | P6 |
+| [`governance/`](governance/) | Agent instruction templates, permission examples, gates G1/G2/G3, minimum risk by changed path, merge policy by risk ([ADR-0007](docs/adr/0007-risk-and-merge-policy.md)) | P6a ✅, P6b |
 | [`orchestration/`](orchestration/) | Planner workflow, dispatch to sub-agents by model tier, worktree pool for parallel tasks | P1, P7 |
 | [`skill-regression/`](skill-regression/) | Regression tests for reviewer agents and skills with seeded-defect cases | P8 |
 | [`adapters/claude-code/`](adapters/claude-code/) | Everything specific to Claude Code: hooks, transcript harvest, agent definitions | P1– |
-| [`examples/demo-api/`](examples/demo-api/) | A tiny todo REST API the gates and reviewers are applied to | P6 |
+| [`examples/demo-api/`](examples/demo-api/) | A tiny todo REST API the templates, gates and reviewers are applied to | P1, P6a ✅ |
 
 ## Sample report
 

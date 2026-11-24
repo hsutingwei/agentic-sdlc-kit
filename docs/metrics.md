@@ -65,7 +65,9 @@ cannot be raised by leaving failures out. Deferred and open tasks are not scored
 ## Other reports
 
 - **`verifications.csv`** – one row per check: task, time, check, result,
-  executor, gate, commit.
+  executor, gate, commit. Checks are `build`, `unit`, `integration`, `ui`,
+  `review` and `acceptance`; executors are `script`, `agent` and `human`. A review
+  is always bound to a commit, and acceptance is always recorded by a human.
 - **`usage.csv`** – tokens per task and model, plus `(outside tasks)` per model.
 - **Task coverage** (`summary.md`) – share of output tokens of all harvested
   sessions that fell inside a task window. Output tokens are used because they

@@ -3,6 +3,23 @@
 All notable changes. Versions follow [Semantic Versioning](https://semver.org/);
 until 1.0 the command line and file formats may still change.
 
+## Unreleased
+
+### Governance (P6a)
+
+- Templates: `AGENTS.md` (safety boundaries, plan before editing, verification
+  by risk, report format), `CLAUDE.md` importing it, and `settings.json` deny
+  rules, applied to `examples/demo-api`.
+- Gate steps `clean-tree`, `references` and `deny-sync`; the demo has G1, G2
+  and G3, with its tests split into `test/unit` and `test/integration`.
+- `.asdk/risk-paths.json` raises a task's risk from the paths it changed.
+- `merge_policy`: `wt finish` requires the gate and the reviews that the
+  effective risk calls for, on the exact commit it merges, by the integration
+  branch's rules ([ADR-0007](docs/adr/0007-risk-and-merge-policy.md)).
+- `task verify --check review` and `--executor agent`.
+- `push_check.block` makes the pre-push hook refuse a commit without a passing
+  gate run.
+
 ## 0.1.0 – 2026-11-24
 
 The first version that can be shown end to end: phases P0 to P5 of the

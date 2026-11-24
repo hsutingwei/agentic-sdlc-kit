@@ -60,11 +60,11 @@ node <kit>/bin/asdk.mjs hooks uninstall   # 還原成原本的位元組
 |---|---|---|
 | [`core/`](core/) | 所有模組共用的契約（任務、任務簡報、agent 報告、gate 結果、事件、token 用量），以及不依賴第三方套件的驗證器 | P0 ✅ |
 | [`collector/`](collector/) | 記錄每個任務從開始到驗收的過程：hook 事件、任務生命週期、token 用量、報表、push 檢查 | P1–P5 ✅ |
-| [`governance/`](governance/) | agent 指令範本、權限範例、依風險分級的關卡（G1/G2/G3） | P6 |
+| [`governance/`](governance/) | agent 指令範本、權限範例、G1/G2/G3 關卡、依改動路徑決定最低風險、依風險決定合併條件（[ADR-0007](docs/adr/0007-risk-and-merge-policy.md)） | P6a ✅、P6b |
 | [`orchestration/`](orchestration/) | 指揮官流程、依模型等級派工給子代理、平行開發用的 worktree 池 | P1、P7 |
 | [`skill-regression/`](skill-regression/) | 用植入缺陷的案例，對 reviewer agent 和 skill 做回歸測試 | P8 |
 | [`adapters/claude-code/`](adapters/claude-code/) | Claude Code 專屬的部分：hooks、transcript 收集、agent 定義 | P1 起 |
-| [`examples/demo-api/`](examples/demo-api/) | 一個很小的待辦事項 REST API，讓 gate 和 reviewer 有東西可以套用 | P6 |
+| [`examples/demo-api/`](examples/demo-api/) | 一個很小的待辦事項 REST API，讓範本、gate 和 reviewer 有東西可以套用 | P1、P6a ✅ |
 
 ## 範例報表
 

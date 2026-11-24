@@ -85,17 +85,36 @@ changes `src/**` and `test/**`, runs the tests, commits, and replies with an
 agent report. Every hook event is recorded as metadata: tool names, sizes,
 sub-agent ids. Prompt text, file contents and answers are not stored.
 
-## 6. Gate and merge
+## 6. Gate, review and merge
 
 ```sh
 asdk wt finish DEMO-001
 ```
 
-The branch is rebased onto the latest `dev`, G1 (syntax check and unit tests)
-runs on the rebased commit and is recorded on the task, and the branch is merged
-with `--no-ff`. If G1 fails, nothing is merged and the worktree stays; fix it
-(or ask the agent to) and run `wt finish` again. The first-pass rate in the
-report counts that.
+The branch is rebased onto the latest `dev`. DEMO-001 was declared low risk,
+but it changes `src/server.mjs`, which `.asdk/risk-paths.json` marks as the
+public HTTP contract, so its effective risk is **medium**. The merge policy in
+`.asdk/gates.json` then asks for G2 (syntax, agent references, deny rules, unit
+and integration tests) on the rebased commit, and one review of that commit
+([ADR-0007](adr/0007-risk-and-merge-policy.md)).
+
+If G2 fails, nothing is merged and the worktree stays; fix it (or ask the agent
+to) and run `wt finish` again. The first-pass rate in the report counts that.
+
+When G2 passes, `wt finish` stops and prints the commit to review. Look at the
+diff, timing it, and record your verdict on that exact commit:
+
+```sh
+asdk human start DEMO-001 --activity review
+git -C ~/wt/demo-api/DEMO-001 diff dev...HEAD
+asdk human stop
+asdk task verify DEMO-001 --check review --result pass --executor human --sha <the commit wt finish printed>
+asdk wt finish DEMO-001
+```
+
+The second `wt finish` gates the same commit again and merges it with `--no-ff`.
+A reviewer agent can record the review instead (`--executor agent`); reviewer
+agents come in a later phase.
 
 ## 7. Accept and end
 
@@ -135,8 +154,8 @@ asdk report --harvest
 
 Open `~/.agentic-metrics/reports/summary.md` (the CSV files are next to it). With
 your time recorded and the session harvested the row is `Complete`, and its
-efficiency is the estimate divided by your hours times the quality factor; the
-failed first G1 run costs 0.1. See [metrics.md](metrics.md) for every column
+efficiency is the estimate divided by your hours times the quality factor; a
+failed first G2 run costs 0.1. See [metrics.md](metrics.md) for every column
 and flag, and [demo-run.md](demo-run.md) for the numbers of a real run.
 
 ## Clean up

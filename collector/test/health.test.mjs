@@ -60,3 +60,12 @@ test('fails are reported with exit status 1', (t) => {
   assert.ok(json.every((c) => ['ok', 'warn', 'fail'].includes(c.status)));
   assert.equal(runAsdk(sb, ['health', '--scope', 'local'], { cwd: sb.home }).status, 1);
 });
+
+test('settings that override plan profiles are named', (t) => {
+  const sb = createSandbox(t, 'health-overrides');
+  assert.equal(byName(runChecks(sb.env))['profile overrides'].status, 'ok');
+  const c = byName(runChecks({ ...sb.env, CLAUDE_CODE_EFFORT_LEVEL: 'low', CLAUDE_CODE_SUBAGENT_MODEL_FORCE: '1' }))['profile overrides'];
+  assert.equal(c.status, 'warn');
+  assert.match(c.detail, /CLAUDE_CODE_EFFORT_LEVEL=low sets the reasoning effort/);
+  assert.match(c.detail, /CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1 forces one model/);
+});

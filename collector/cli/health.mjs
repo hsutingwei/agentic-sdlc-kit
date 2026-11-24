@@ -97,6 +97,18 @@ function checkEvents(env) {
   return results;
 }
 
+// Claude Code settings that win over what a plan profile writes into agent files.
+const PROFILE_OVERRIDES = {
+  CLAUDE_CODE_EFFORT_LEVEL: 'sets the reasoning effort of every session and sub-agent',
+  CLAUDE_CODE_SUBAGENT_MODEL_FORCE: 'forces one model on every sub-agent',
+};
+
+function checkProfileOverrides(env) {
+  const set = Object.keys(PROFILE_OVERRIDES).filter((k) => env[k] !== undefined && env[k] !== '');
+  if (set.length === 0) return ok('profile overrides', 'none set; agent files decide model and effort');
+  return warn('profile overrides', `${set.map((k) => `${k}=${env[k]} ${PROFILE_OVERRIDES[k]}`).join('; ')}; plan profiles have no effect while it is set`);
+}
+
 /** Runs the hook once against a throw-away data directory and times it. */
 function checkProbe(env) {
   const dir = mkdtempSync(path.join(os.tmpdir(), 'asdk-health-'));
@@ -119,7 +131,7 @@ function checkProbe(env) {
 }
 
 export function runChecks(env, { target = { scope: 'user' }, now = Date.now() } = {}) {
-  return [checkNode(), checkDataDir(env), checkConfig(env), checkRecording(env), checkHooks(env, target), checkErrorLog(env, now), ...checkEvents(env), checkProbe(env)];
+  return [checkNode(), checkDataDir(env), checkConfig(env), checkRecording(env), checkHooks(env, target), checkErrorLog(env, now), ...checkEvents(env), checkProfileOverrides(env), checkProbe(env)];
 }
 
 export async function runHealth(argv, { env, cwd, out }) {

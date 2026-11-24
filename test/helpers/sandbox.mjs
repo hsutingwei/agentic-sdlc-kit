@@ -61,7 +61,8 @@ export function createSandbox(t, label = 'sandbox') {
     const upper = key.toUpperCase();
     // NODE_TEST_CONTEXT is set by the outer `node --test`; a nested `node --test`
     // that inherits it reports to the outer runner instead of printing results.
-    if (LEAKY_GIT_VARS.has(upper) || upper.startsWith('AGENTIC_') || upper === 'NODE_TEST_CONTEXT') continue;
+    // CLAUDE_CODE_* settings of a developer's own session must not change results.
+    if (LEAKY_GIT_VARS.has(upper) || upper.startsWith('AGENTIC_') || upper.startsWith('CLAUDE_CODE_') || upper === 'NODE_TEST_CONTEXT') continue;
     env[key] = value;
   }
   Object.assign(env, {

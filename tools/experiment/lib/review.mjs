@@ -62,6 +62,12 @@ export function beginReview(dir, state, { baseEnv = process.env, now } = {}) {
   startHuman(env, { taskId: state.task, activity: 'review', switchTask: true, now });
 }
 
+/** Stops the timer without a decision; the time spent so far still counts when the review resumes. */
+export function pauseReview(dir, state, { baseEnv = process.env, now } = {}) {
+  const { env } = context(dir, state, baseEnv);
+  stopHuman(env, { taskId: state.task, now });
+}
+
 /**
  * Records the decision, then merges, checks and ends the task.
  * @param {{ decision: 'accept' | 'reject', note?: string }} verdict

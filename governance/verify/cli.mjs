@@ -27,14 +27,14 @@ export async function runVerifyCommand(argv, { env, cwd, out }) {
   } else {
     const e = run.evidence;
     out(`verify on ${e.head_sha.slice(0, 12)}${e.tree_clean ? '' : ' (uncommitted changes present)'}`);
-    if (e.launch_problem) out(`  ERROR   launch: ${e.launch_problem}`);
     for (const s of e.scenarios) {
       out(`  ${s.result.toUpperCase().padEnd(7)} ${s.name}${s.criteria ? ` (${s.criteria.join(', ')})` : ''}`);
+      if (s.launch_problem) out(`          launch: ${s.launch_problem}`);
       for (const step of s.steps.filter((x) => x.result !== 'pass')) out(`          ${step.result} ${step.name}${step.reason ? `: ${step.reason}` : ''}`);
-    }
-    if (e.launch_problem && e.server_log_tail.length) {
-      out('--- last lines the application printed:');
-      for (const line of e.server_log_tail) out(line);
+      if (s.result !== 'pass' && s.server_log_tail.length) {
+        out(`--- last lines ${s.name} printed:`);
+        for (const line of s.server_log_tail.slice(-10)) out(line);
+      }
     }
     out(`evidence: ${run.file}`);
     out(`sha256:   ${run.sha256}`);

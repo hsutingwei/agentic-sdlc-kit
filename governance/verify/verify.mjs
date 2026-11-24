@@ -13,8 +13,9 @@
 // status and a subset of the JSON body; `save` keeps a value for later steps as
 // {name}. {port} is the port the kit picked.
 //
-// The process is always stopped, with everything it started: taskkill /T on
-// Windows, the process group elsewhere.
+// Each scenario runs against a freshly started application, so scenarios cannot
+// depend on each other's data. The process is always stopped, with everything it
+// started: taskkill /T on Windows, the process group elsewhere.
 
 import { spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -217,6 +218,64 @@ async function runScenario({ name, file, scenario }, base, port, recordBodies) {
   return { name, file, ...(scenario.criteria ? { criteria: scenario.criteria } : {}), result, steps };
 }
 
+/**
+ * Starts the application on a free port, waits until it answers, runs fn(base, port) and stops
+ * it with everything it started, whatever happened.
+ * @returns {Promise<{ port: number, log: string[], problem?: string, value?: any }>}
+ */
+async function withApplication(top, env, launch, fn) {
+  const port = await freePort();
+  const vars = { port };
+  const [cmd, ...args] = substitute(launch.run, vars);
+  const child = spawn(cmd === 'node' ? process.execPath : cmd, args, {
+    cwd: top,
+    env: { ...env, ...substitute(launch.env, vars) },
+    stdio: ['ignore', 'pipe', 'pipe'],
+    detached: process.platform !== 'win32', // its own process group, so it can be stopped as a whole
+    windowsHide: true,
+  });
+  const log = [];
+  const collect = (chunk) => {
+    for (const line of chunk.toString('utf8').split(/\r?\n/)) if (line) log.push(line);
+    if (log.length > LOG_LINES) log.splice(0, log.length - LOG_LINES);
+  };
+  child.stdout.on('data', collect);
+  child.stderr.on('data', collect);
+  let spawnError = null;
+  const exited = new Promise((resolve) => {
+    child.on('exit', resolve);
+    child.on('error', (err) => {
+      spawnError = err;
+      resolve();
+    });
+  });
+
+  const base = `http://127.0.0.1:${port}`;
+  try {
+    const deadline = Date.now() + launch.timeout_ms;
+    let ready = false;
+    while (!ready && Date.now() < deadline) {
+      if (spawnError || child.exitCode !== null || child.signalCode !== null) break;
+      try {
+        const r = await fetch(`${base}${launch.ready.path}`, { signal: AbortSignal.timeout(1000) });
+        await r.arrayBuffer();
+        ready = r.status === launch.ready.status;
+      } catch {
+        // not listening yet
+      }
+      if (!ready) await sleep(100);
+    }
+    if (spawnError) return { port, log, problem: `could not start ${cmd}: ${spawnError.message}` };
+    if (!ready) {
+      const problem = child.exitCode !== null ? `the application exited with code ${child.exitCode} before it was ready` : `not ready within ${launch.timeout_ms} ms (${launch.ready.path} did not answer ${launch.ready.status})`;
+      return { port, log, problem };
+    }
+    return { port, log, value: await fn(base, port) };
+  } finally {
+    await stopTree(child, exited);
+  }
+}
+
 const stamp = (d) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z');
 
 /**
@@ -241,59 +300,20 @@ export async function runVerify(env, { cwd, scenario: only, taskId, record = fal
   // Evidence vouches for a commit: uncommitted changes would make it vouch for something else.
   if (record && !treeClean) throw usageError('commit or discard uncommitted changes first; recorded evidence must match the commit');
 
+  // Each scenario gets a freshly started application, so no scenario sees another's data.
   const startedAt = now();
-  const port = await freePort();
-  const vars = { port };
-  const [cmd, ...args] = substitute(config.launch.run, vars);
-  const child = spawn(cmd === 'node' ? process.execPath : cmd, args, {
-    cwd: top,
-    env: { ...env, ...substitute(config.launch.env, vars) },
-    stdio: ['ignore', 'pipe', 'pipe'],
-    detached: process.platform !== 'win32', // its own process group, so it can be stopped as a whole
-    windowsHide: true,
-  });
-  const log = [];
-  const collect = (chunk) => {
-    for (const line of chunk.toString('utf8').split(/\r?\n/)) if (line) log.push(line);
-    if (log.length > LOG_LINES) log.splice(0, log.length - LOG_LINES);
-  };
-  child.stdout.on('data', collect);
-  child.stderr.on('data', collect);
-  let spawnError = null;
-  const exited = new Promise((resolve) => {
-    child.on('exit', resolve);
-    child.on('error', (err) => {
-      spawnError = err;
-      resolve();
-    });
-  });
-
-  const base = `http://127.0.0.1:${port}`;
   const results = [];
-  let launchProblem = null;
-  try {
-    const deadline = Date.now() + config.launch.timeout_ms;
-    let ready = false;
-    while (!ready && Date.now() < deadline) {
-      if (spawnError) break;
-      if (child.exitCode !== null || child.signalCode !== null) break;
-      try {
-        const r = await fetch(`${base}${config.launch.ready.path}`, { signal: AbortSignal.timeout(1000) });
-        await r.arrayBuffer();
-        ready = r.status === config.launch.ready.status;
-      } catch {
-        // not listening yet
-      }
-      if (!ready) await sleep(100);
-    }
-    if (spawnError) launchProblem = `could not start ${cmd}: ${spawnError.message}`;
-    else if (!ready) launchProblem = child.exitCode !== null ? `the application exited with code ${child.exitCode} before it was ready` : `not ready within ${config.launch.timeout_ms} ms (${config.launch.ready.path} did not answer ${config.launch.ready.status})`;
-    else for (const s of scenarios) results.push(await runScenario(s, base, port, config.record_bodies));
-  } finally {
-    await stopTree(child, exited);
+  for (const s of scenarios) {
+    const app = await withApplication(top, env, config.launch, (base, port) => runScenario(s, base, port, config.record_bodies));
+    const named = { name: s.name, file: s.file, ...(s.scenario.criteria ? { criteria: s.scenario.criteria } : {}) };
+    results.push(
+      app.problem
+        ? { ...named, result: 'error', launch_problem: app.problem, steps: [], port: app.port, server_log_tail: app.log }
+        : { ...app.value, port: app.port, server_log_tail: app.log },
+    );
   }
 
-  const result = launchProblem ? 'error' : results.some((r) => r.result === 'error') ? 'error' : results.some((r) => r.result === 'fail') ? 'fail' : 'pass';
+  const result = results.some((r) => r.result === 'error') ? 'error' : results.some((r) => r.result === 'fail') ? 'fail' : 'pass';
   const finishedAt = now();
   const evidence = {
     schema_version: 1,
@@ -301,12 +321,9 @@ export async function runVerify(env, { cwd, scenario: only, taskId, record = fal
     ...(task ? { task_id: task.task_id } : {}),
     head_sha: head,
     tree_clean: treeClean,
-    port,
     check: config.verifies,
     result,
-    ...(launchProblem ? { launch_problem: launchProblem } : {}),
     scenarios: results,
-    server_log_tail: log,
     started_at: startedAt.toISOString(),
     finished_at: finishedAt.toISOString(),
   };

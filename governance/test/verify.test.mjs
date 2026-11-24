@@ -61,7 +61,7 @@ test('the demo passes; evidence is kept, hashed and recorded on the exact commit
   assert.deepEqual([v.check, v.result, v.executor, v.sha, v.evidence], ['ui', 'pass', 'script', head, run.sha256]);
   const event = readEvents(sb.env).events.find((x) => x.event === 'verify.run');
   assert.deepEqual([event.data.result, event.data.evidence, event.task_id], ['pass', run.sha256, 'DEMO-001']);
-  assert.equal(await closed(e.port), true, 'the application is stopped');
+  assert.equal(await closed(e.scenarios[0].port), true, 'the application is stopped');
 
   // Uncommitted changes: running is fine, recording is not.
   writeFileSync(path.join(repo, 'notes.txt'), 'draft\n');
@@ -95,18 +95,19 @@ test('an application that never gets ready is an error, with its last output', a
   writeFileSync(config, JSON.stringify(c));
   const run = await runVerify(sb.env, { cwd: repo });
   assert.equal(run.result, 'error');
-  assert.match(run.evidence.launch_problem, /exited with code 3 before it was ready/);
-  assert.deepEqual(run.evidence.server_log_tail, ['數據庫 連線失敗']);
+  assert.match(run.evidence.scenarios[0].launch_problem, /exited with code 3 before it was ready/);
+  assert.deepEqual(run.evidence.scenarios[0].server_log_tail, ['數據庫 連線失敗']);
+  assert.match(runAsdk(sb, ['verify', 'run'], { cwd: repo }).stdout, /ERROR {3}todos-basic\n {10}launch: the application exited with code 3/);
 
   c.launch.run = ['node', '-e', 'setInterval(() => {}, 1000)'];
   c.launch.timeout_ms = 500;
   writeFileSync(config, JSON.stringify(c));
   const slow = await runVerify(sb.env, { cwd: repo });
-  assert.match(slow.evidence.launch_problem, /not ready within 500 ms/);
+  assert.match(slow.evidence.scenarios[0].launch_problem, /not ready within 500 ms/);
 
   c.launch.run = ['asdk-no-such-program-xyz'];
   writeFileSync(config, JSON.stringify(c));
-  assert.match((await runVerify(sb.env, { cwd: repo })).evidence.launch_problem, /could not start asdk-no-such-program-xyz/);
+  assert.match((await runVerify(sb.env, { cwd: repo })).evidence.scenarios[0].launch_problem, /could not start asdk-no-such-program-xyz/);
 });
 
 test('everything the launcher started is stopped afterwards', async (t) => {
@@ -121,8 +122,9 @@ test('everything the launcher started is stopped afterwards', async (t) => {
   commitAll(sb, repo, 'chore: launch through a wrapper');
   const run = await runVerify(sb.env, { cwd: repo });
   assert.equal(run.result, 'pass', JSON.stringify(run.evidence));
-  const port = /listening on http:\/\/127\.0\.0\.1:(\d+)/.exec(run.evidence.server_log_tail.join('\n'))?.[1];
-  assert.ok(port, run.evidence.server_log_tail.join('\n'));
+  const log = run.evidence.scenarios[0].server_log_tail.join('\n');
+  const port = /listening on http:\/\/127\.0\.0\.1:(\d+)/.exec(log)?.[1];
+  assert.ok(port, log);
   assert.equal(await closed(port), true, 'the grandchild server must be gone');
 });
 

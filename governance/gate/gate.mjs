@@ -17,6 +17,7 @@ import { resolveProject } from '../../collector/lib/registry.mjs';
 import { readWorktreeMarker } from '../../collector/lib/state.mjs';
 import { appendEvent, makeEvent } from '../../collector/lib/store.mjs';
 import { CHECKS, loadTaskRecords, verifyTask } from '../../collector/lib/tasks.mjs';
+import { changedPaths, higherRisk, loadRiskPaths, pathMinimum } from './risk.mjs';
 
 const CONFIG_FILE = path.join('.asdk', 'gates.json');
 const KINDS = ['lint', 'build', 'unit', 'integration', 'ui', 'static'];
@@ -116,7 +117,7 @@ const stamp = (d) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z'
 
 /**
  * Runs one gate in the repository that contains `cwd`.
- * @returns {{ summary: object, file: string, outputs: Record<string, string> }}
+ * @returns {{ summary: object, file: string, outputs: Record<string, string>, risk_matches: Array<{ path: string, risk: string, reason?: string }> }}
  */
 export function runGate(env, { gate, cwd, taskId, record = false, runner, now = () => new Date() }) {
   const repo = repoInfo(cwd, env);
@@ -144,6 +145,8 @@ export function runGate(env, { gate, cwd, taskId, record = false, runner, now = 
   const base = tryGit(['rev-parse', '--verify', '-q', `refs/heads/${baseBranch}`], { cwd: top, env });
   const runnerId = runner ?? config.runner_id ?? 'local';
   if (!NAME.test(runnerId)) throw usageError(`invalid runner id "${runnerId}"`);
+  const riskRules = loadRiskPaths(top);
+  const minimum = pathMinimum(riskRules, changedPaths(top, env, { base: base.ok ? base.stdout.trim() : null, head }));
 
   const startedAt = now();
   const treeClean = isClean(top, env);
@@ -175,8 +178,8 @@ export function runGate(env, { gate, cwd, taskId, record = false, runner, now = 
     base_branch: baseBranch,
     ...(base.ok ? { base_sha: base.stdout.trim() } : {}),
     tree_clean: treeClean,
-    // Path-based minimum risk arrives with risk-paths.json; until then it adds nothing.
-    risk: { ...(declared ? { declared } : {}), path_minimum: 'low', effective: declared ?? 'low' },
+    // Changed paths can raise the declared risk, never lower it.
+    risk: { ...(declared ? { declared } : {}), path_minimum: minimum.risk, effective: declared ? higherRisk(declared, minimum.risk) : minimum.risk },
     steps,
     result,
     runner: { id: runnerId },
@@ -208,5 +211,5 @@ export function runGate(env, { gate, cwd, taskId, record = false, runner, now = 
   if (record) {
     verifyTask(env, { taskId: task.task_id, check: gateConfig.verifies, result, executor: 'script', sha: head, gate, source: 'gate', now: finishedAt });
   }
-  return { summary, file, outputs };
+  return { summary, file, outputs, risk_matches: minimum.matches };
 }

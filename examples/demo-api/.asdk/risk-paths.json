@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "rules": [
+    { "paths": ["src/server.mjs"], "risk": "medium", "reason": "public HTTP contract" },
+    { "paths": ["package.json", "package-lock.json"], "risk": "medium", "reason": "dependencies and scripts" },
+    { "paths": [".asdk/**", ".claude/**", "AGENTS.md", "CLAUDE.md"], "risk": "high", "reason": "gates, risk rules, agent rules and permissions" }
+  ]
+}

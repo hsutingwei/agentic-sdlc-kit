@@ -9,8 +9,13 @@ import { loadGateConfig, runGate } from './gate.mjs';
 const RUN_USAGE = 'asdk gate run <GATE> [--task <ID>] [--record] [--runner <id>] [--json]';
 const TAIL_LINES = 40;
 
-export function printGateResult({ summary, outputs }, out) {
+export function printGateResult({ summary, outputs, risk_matches: matches = [] }, out) {
   out(`gate ${summary.gate} on ${summary.head_sha.slice(0, 12)}${summary.tree_clean ? '' : ' (uncommitted changes present)'}`);
+  const { declared, effective } = summary.risk;
+  if (matches.length && effective !== declared) {
+    out(`risk: ${declared ? `${declared} raised to ` : ''}${effective} by changed paths (.asdk/risk-paths.json):`);
+    for (const m of matches.slice(0, 10)) out(`  ${m.risk.padEnd(8)} ${m.path}${m.reason ? ` - ${m.reason}` : ''}`);
+  }
   for (const s of summary.steps) out(`  ${s.result.toUpperCase().padEnd(7)} ${s.name}${s.result === 'skipped' ? '' : ` (${s.duration_ms} ms)`}`);
   const failed = summary.steps.find((s) => s.result === 'fail' || s.result === 'error');
   if (failed) {

@@ -35,7 +35,10 @@ export async function runWt(argv, { env, out }) {
     if (result.reason === 'reviews') {
       const { reviews, risk, head_sha: sha } = result;
       if (reviews.blocked) out(`not merged: a review of ${sha.slice(0, 12)} failed. Fix the branch (a new commit needs new reviews), or a human may overrule it with a passing review of this commit.`);
-      else out(`not merged: ${risk.effective} risk needs ${reviews.missing.join(' and ')} of ${sha.slice(0, 12)}.`);
+      else {
+        const basis = result.rule.from_profile ? (result.profile ? ` (verifiers from profile ${result.profile})` : ' (task without a profile: 1 verifier)') : '';
+        out(`not merged: ${risk.effective} risk needs ${reviews.missing.join(' and ')} of ${sha.slice(0, 12)}${basis}.`);
+      }
       out(`record a review with: asdk task verify ${id} --check review --result pass|fail --executor agent|human --sha ${sha}`);
       out('then run wt finish again; the commit stays the same while the integration branch does not move.');
       return 1;

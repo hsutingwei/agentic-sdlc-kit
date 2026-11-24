@@ -3,14 +3,16 @@
 //
 //   "merge_policy": {
 //     "low":      { "gate": "G1" },
-//     "medium":   { "gate": "G2", "reviews": { "any": 1 } },
+//     "medium":   { "gate": "G2", "reviews": { "any": "profile" } },
 //     "high":     { "gate": "G2", "reviews": { "agent": 1, "human": 1 } },
 //     "critical": { "gate": "G2", "reviews": { "agent": 1, "human": 1 } }
 //   }
 //
 // reviews counts passing `review` verifications recorded on the exact commit to
-// be merged: `agent` and `human` by executor, `any` in total. A failing review on
-// that commit blocks the merge until a human review passes after it.
+// be merged: `agent` and `human` by executor, `any` in total. A count may be
+// "profile": the verifiers the task's plan profile sets for that risk, or 1 for a
+// task without a profile. A failing review on that commit blocks the merge until
+// a human review passes after it.
 
 import { RISKS } from '../../collector/lib/tasks.mjs';
 
@@ -31,17 +33,27 @@ export function validateMergePolicy(policy, gates, fail) {
     if (typeof reviews !== 'object' || Array.isArray(reviews)) fail(`merge_policy.${risk}: "reviews" must be an object`);
     for (const [kind, n] of Object.entries(reviews)) {
       if (!REVIEW_KINDS.includes(kind)) fail(`merge_policy.${risk}.reviews: "${kind}" must be one of ${REVIEW_KINDS.join(', ')}`);
-      if (!Number.isInteger(n) || n < 0 || n > 9) fail(`merge_policy.${risk}.reviews.${kind} must be a whole number from 0 to 9`);
+      if (n !== 'profile' && (!Number.isInteger(n) || n < 0 || n > 9)) fail(`merge_policy.${risk}.reviews.${kind} must be a whole number from 0 to 9, or "profile"`);
     }
   }
 }
 
-/** The rule for one risk level, with review counts filled in; null when the project has no policy. */
-export function mergeRule(config, risk) {
+export const VERIFIERS_WITHOUT_PROFILE = 1;
+
+/**
+ * The rule for one risk level, with review counts filled in and "profile" replaced by
+ * `verifiers`; null when the project has no policy.
+ */
+export function mergeRule(config, risk, verifiers = VERIFIERS_WITHOUT_PROFILE) {
   const rule = config.merge_policy?.[risk];
   if (!rule) return null;
-  const reviews = { any: 0, agent: 0, human: 0, ...(rule.reviews ?? {}) };
-  return { gate: rule.gate, reviews };
+  const reviews = { any: 0, agent: 0, human: 0 };
+  let fromProfile = false;
+  for (const [kind, n] of Object.entries(rule.reviews ?? {})) {
+    reviews[kind] = n === 'profile' ? verifiers : n;
+    if (n === 'profile') fromProfile = true;
+  }
+  return { gate: rule.gate, reviews, from_profile: fromProfile };
 }
 
 /**

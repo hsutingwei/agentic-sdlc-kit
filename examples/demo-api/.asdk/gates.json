@@ -4,7 +4,7 @@
   "integration_branch": "dev",
   "merge_policy": {
     "low": { "gate": "G1" },
-    "medium": { "gate": "G2", "reviews": { "any": 1 } },
+    "medium": { "gate": "G2", "reviews": { "any": "profile" } },
     "high": { "gate": "G2", "reviews": { "agent": 1, "human": 1 } },
     "critical": { "gate": "G2", "reviews": { "agent": 1, "human": 1 } }
   },

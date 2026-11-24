@@ -162,6 +162,21 @@ test('asdk wt finish explains which reviews are missing', (t) => {
   commitIn(sb, wt.path, 'src/server.mjs', `${readFileSync(path.join(wt.path, 'src', 'server.mjs'), 'utf8')}// note\n`);
   const r = runAsdk(sb, ['wt', 'finish', 'DEMO-001'], { cwd: root });
   assert.equal(r.status, 1, r.stdout + r.stderr);
-  assert.match(r.stdout, /not merged: medium risk needs 1 review\(s\) by an agent or a human of [0-9a-f]{12}\./);
+  assert.match(r.stdout, /not merged: medium risk needs 1 review\(s\) by an agent or a human of [0-9a-f]{12} \(task without a profile: 1 verifier\)\./);
   assert.match(r.stdout, /asdk task verify DEMO-001 --check review --result pass\|fail --executor agent\|human --sha [0-9a-f]{40}/);
+});
+
+test('review counts set to "profile" follow the task profile', (t) => {
+  const { sb, root } = setup(t, 'wt-profile');
+  startTask(sb.env, { taskId: 'DEMO-002', cwd: root, type: 'feature', risk: 'medium', profile: 'ultra' });
+  const wt = newWorktree(sb.env, { taskId: 'DEMO-002' });
+  commitIn(sb, wt.path, 'src/a.mjs', 'export const a = 1;\n');
+  const first = finishWorktree(sb.env, { taskId: 'DEMO-002' });
+  assert.deepEqual([first.reason, first.profile, first.rule.reviews.any], ['reviews', 'ultra', 2]);
+  verifyTask(sb.env, { taskId: 'DEMO-002', check: 'review', result: 'pass', executor: 'agent', sha: first.head_sha });
+  assert.deepEqual(finishWorktree(sb.env, { taskId: 'DEMO-002' }).reviews.missing, ['1 review(s) by an agent or a human']);
+  verifyTask(sb.env, { taskId: 'DEMO-002', check: 'review', result: 'pass', executor: 'agent', sha: first.head_sha });
+  const r = runAsdk(sb, ['wt', 'finish', 'DEMO-002'], { cwd: root });
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.match(r.stdout, /merged /);
 });

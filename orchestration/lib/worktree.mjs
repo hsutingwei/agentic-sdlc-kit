@@ -19,6 +19,7 @@ import { loadTaskRecords } from '../../collector/lib/tasks.mjs';
 import { loadGateConfig, runGate } from '../../governance/gate/gate.mjs';
 import { mergeRule, reviewStatus } from '../../governance/gate/policy.mjs';
 import { changedPaths, higherRisk, loadRiskPaths, pathMinimum } from '../../governance/gate/risk.mjs';
+import { loadProfiles } from '../../governance/profiles/profiles.mjs';
 
 const BRANCH_PREFIX = {
   feature: 'feat',
@@ -141,14 +142,16 @@ export function finishWorktree(env, { taskId, gate: requested, now }) {
   const changed = changedPaths(wtPath, env, { base: git(['rev-parse', `refs/heads/${integration}`], { cwd: root, env }), head: verified });
   const minimum = pathMinimum(loadRiskPaths(root), changed).risk;
   const effective = higherRisk(task.risk, minimum);
-  const rule = mergeRule(loadGateConfig(root), effective);
+  // Review counts set to "profile" follow the task's plan profile (ADR-0008).
+  const profile = task.profile ? loadProfiles(root).profiles[task.profile] : undefined;
+  const rule = mergeRule(loadGateConfig(root), effective, profile?.verifiers[effective]);
   if (rule && requested && requested !== rule.gate) {
     throw ruleError(`the merge policy requires gate ${rule.gate} for ${effective} risk; --gate ${requested} cannot replace it`);
   }
   const gate = rule?.gate ?? requested ?? 'G1';
 
   const run = runGate(env, { gate, cwd: wtPath, taskId, record: true, rulesFrom: root, now: now ? () => now : undefined });
-  const outcome = { gate: run, risk: run.summary.risk, rule, head_sha: verified };
+  const outcome = { gate: run, risk: run.summary.risk, rule, profile: task.profile ?? null, head_sha: verified };
   if (run.summary.result !== 'pass') return { merged: false, reason: 'gate', ...outcome };
   if (rule) {
     const reviews = reviewStatus(loadTaskRecords(env).get(taskId).verifications, verified, rule.reviews);

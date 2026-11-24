@@ -28,7 +28,13 @@ test('a merge policy must cover every risk level with known gates and review cou
   ]) {
     assert.throws(() => validateMergePolicy(policy, GATES, fail), message);
   }
-  assert.deepEqual(mergeRule({ merge_policy: POLICY }, 'high'), { gate: 'G2', reviews: { any: 0, agent: 1, human: 1 } });
+  assert.deepEqual(mergeRule({ merge_policy: POLICY }, 'high'), { gate: 'G2', reviews: { any: 0, agent: 1, human: 1 }, from_profile: false });
+  // "profile" takes the verifier count of the task's profile, 1 without one.
+  const byProfile = { ...POLICY, medium: { gate: 'G2', reviews: { any: 'profile', human: 1 } } };
+  validateMergePolicy(byProfile, GATES, fail);
+  assert.deepEqual(mergeRule({ merge_policy: byProfile }, 'medium', 3), { gate: 'G2', reviews: { any: 3, agent: 0, human: 1 }, from_profile: true });
+  assert.equal(mergeRule({ merge_policy: byProfile }, 'medium').reviews.any, 1);
+  assert.throws(() => validateMergePolicy({ ...POLICY, low: { gate: 'G1', reviews: { any: 'plan' } } }, GATES, fail), /or "profile"/);
   assert.equal(mergeRule({}, 'high'), null);
 });
 

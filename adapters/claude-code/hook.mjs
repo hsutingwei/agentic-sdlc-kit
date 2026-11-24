@@ -10,6 +10,7 @@ import { appendFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { dataPath } from '../../collector/lib/paths.mjs';
 import { resolveProject } from '../../collector/lib/registry.mjs';
+import { isRecordingDisabled } from '../../collector/lib/recording.mjs';
 import { readWorktreeMarker } from '../../collector/lib/state.mjs';
 import { appendEvent, makeEvent } from '../../collector/lib/store.mjs';
 
@@ -131,6 +132,8 @@ export async function runHook(_argv, { env, cwd, stdin = process.stdin }) {
       logError(env, `no payload: stdin stayed open for ${stdinTimeout(env)} ms`);
       return 0;
     }
+    // Disabled: the payload was still read, so Claude Code never writes into a closed pipe.
+    if (isRecordingDisabled(env)) return 0;
     let payload;
     try {
       payload = JSON.parse(raw);

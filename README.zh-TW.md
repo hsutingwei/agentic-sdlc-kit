@@ -2,8 +2,9 @@
 
 [English](README.md)
 
-> **狀態：開發初期（共 10 個階段，P1 已完成）。** 最精簡的端到端流程已經可以運作：
-> 任務 → worktree → 子代理 → gate → 合併 → scorecard。詳見 [roadmap](docs/roadmap.md)。
+> **狀態：開發初期（共 10 個階段，P2 已完成）。** 最精簡的端到端流程已經可以運作：
+> 任務 → worktree → 子代理 → gate → 合併 → scorecard；Claude Code 的 hooks 也能安裝，
+> 並且移除後不留痕跡。詳見 [roadmap](docs/roadmap.md)。
 
 AI coding agent 寫程式很快，但周圍的流程通常不透明：
 
@@ -38,6 +39,19 @@ node <kit>/bin/asdk.mjs task start DEMO-001 --type feature --risk low --estimate
 node <kit>/bin/asdk.mjs wt new DEMO-001 --slug due-date
 ```
 
+### 記錄你自己的 Claude Code session
+
+```sh
+node <kit>/bin/asdk.mjs project add demo-api ~/work/demo-api
+node <kit>/bin/asdk.mjs hooks install     # 先備份，再修改 ~/.claude/settings.json
+node <kit>/bin/asdk.mjs health            # 檢查設定，並實際執行一次 hook 計時
+node <kit>/bin/asdk.mjs disable           # 暫停紀錄；enable 恢復
+node <kit>/bin/asdk.mjs hooks uninstall   # 還原成原本的位元組
+```
+
+只記錄中繼資料（事件名稱、工具名稱、大小、id），不記錄 prompt 內文、檔案內容或路徑。
+資料存在 `~/.agentic-metrics/`。
+
 ## 模組
 
 | 模組 | 用途 | 階段 |
@@ -64,7 +78,8 @@ _待補（P5）：由 `tools/make-sample.mjs` 從虛構資料產生的表格。_
 
 ## 安全地參與開發
 
-commit 會比對一份放在 **repo 以外** 的私人關鍵字清單：
+commit 會比對一份放在 **repo 以外** 的私人關鍵字清單
+（`npm run hooks:install` 安裝的是這個 git hook，和 `asdk hooks install` 無關）：
 
 ```sh
 npm run hooks:install

@@ -2,8 +2,9 @@
 
 [繁體中文](README.zh-TW.md)
 
-> **Status: early development (P1 of 10 done).** A minimal end-to-end slice works:
-> task → worktree → sub-agent → gate → merge → scorecard. See the [roadmap](docs/roadmap.md).
+> **Status: early development (P2 of 10 done).** A minimal end-to-end slice works:
+> task → worktree → sub-agent → gate → merge → scorecard, and Claude Code hooks can be
+> installed and removed without a trace. See the [roadmap](docs/roadmap.md).
 
 AI coding agents can write code quickly, but the process around them is usually
 opaque: a planner that cannot see the source reviews claims it cannot check,
@@ -34,6 +35,19 @@ node <kit>/bin/asdk.mjs task start DEMO-001 --type feature --risk low --estimate
 node <kit>/bin/asdk.mjs wt new DEMO-001 --slug due-date
 ```
 
+### Record your own Claude Code sessions
+
+```sh
+node <kit>/bin/asdk.mjs project add demo-api ~/work/demo-api
+node <kit>/bin/asdk.mjs hooks install     # edits ~/.claude/settings.json, after a backup
+node <kit>/bin/asdk.mjs health            # checks the setup and times one hook call
+node <kit>/bin/asdk.mjs disable           # pause; enable resumes
+node <kit>/bin/asdk.mjs hooks uninstall   # gives back the original bytes
+```
+
+Only metadata is recorded (event names, tool names, sizes, ids), never prompt text,
+file contents or paths. Data stays in `~/.agentic-metrics/`.
+
 ## Modules
 
 | Module | Purpose | Phase |
@@ -60,7 +74,8 @@ _TBD (P5): a table generated from fictional sample data by `tools/make-sample.mj
 
 ## Contributing safely
 
-Commits are checked against a private keyword list kept **outside** the repository:
+Commits are checked against a private keyword list kept **outside** the repository
+(`npm run hooks:install` sets up this git hook; it is unrelated to `asdk hooks install`):
 
 ```sh
 npm run hooks:install

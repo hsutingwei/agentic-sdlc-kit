@@ -6,7 +6,8 @@ depends on `core/` contracts and git alone. See
 
 Contents:
 
-- **`hook.mjs` (P1, done)** – `asdk hook`: turns a Claude Code hook payload into an `event`. Fields come from an allowlist; prompt, tool input, tool output and answers are reduced to their size. It always exits 0. Installing it in user settings, with byte-exact uninstall, is P2.
+- **`hook.mjs`** – `asdk hook`: turns a Claude Code hook payload into an `event`. Fields come from an allowlist; prompt, tool input, tool output, answers and tool errors are reduced to their size. It always exits 0, gives up on stdin after 5 seconds, and returns at once while recording is disabled.
+- **`install.mjs`, `cli.mjs`** – `asdk hooks install|uninstall|status [--scope user|local] [--project <dir>]`. Edits settings on their text and undoes exactly what it added ([ADR-0003](../../docs/adr/0003-byte-preserving-settings-edits.md)); backups go to `~/.agentic-metrics/backups/claude-settings/`. Events: `SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `Stop`, `SubagentStart`, `SubagentStop`, `SessionEnd`.
 
 Planned:
 - Transcript harvest for token usage per model and per sub-agent (P4).

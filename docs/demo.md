@@ -25,9 +25,16 @@ node tools/demo-setup.mjs ~/work/demo-api
 ```
 
 This copies `examples/demo-api` into a new git repository with `main` and
-`dev` (`dev` checked out), writes `.claude/settings.local.json` with hooks that
-call `asdk hook`, and registers the project as `demo-api`. The kit's own
-repository is not changed.
+`dev` (`dev` checked out), installs the hooks in that repository's
+`.claude/settings.local.json` (your `~/.claude` is not touched), and registers
+the project as `demo-api`. The kit's own repository is not changed. Check the
+setup with:
+
+```sh
+asdk health --scope local --project ~/work/demo-api
+```
+
+`last hook event` stays a warning until Claude Code has run in the project.
 
 ## 2. Start the task
 

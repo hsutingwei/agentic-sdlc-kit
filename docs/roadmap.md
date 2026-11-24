@@ -7,7 +7,7 @@ ends with `npm test` actually run and the result reported.
 |---|---|---|
 | P0 | Skeleton, test runner and sandbox, denylist pre-commit hook, CI with gitleaks, `core/` contracts and validator, ADR-0001, [Claude Code behaviour spike](spike/claude-code-behavior.md) | done; CI not yet run |
 | P1 | End-to-end slice on DEMO-001: `wt new` → sub-agent implements → G1 → `task verify` → merge to `dev` → `task end` → one scorecard row ([demo](demo.md)) | done |
-| P2 | Collector: project registry (worktree-aware), hook recording incl. `SubagentStart`/`SubagentStop`, `hooks install/uninstall` (byte-exact), `enable/disable`, `health` | |
+| P2 | Collector: project registry (worktree-aware, `session set-project`, `project remove`), hook recording incl. `SubagentStart`/`SubagentStop`/`PostToolUseFailure`, `hooks install/uninstall` (byte-exact, [ADR-0003](adr/0003-byte-preserving-settings-edits.md)), `enable/disable`, `health` | done |
 | P3 | Collector: task lifecycle CLI, lock files, multi-process contention test | |
 | P4 | Collector: token usage harvest, quota snapshots, plan changes | |
 | P5 | Collector: reports, push check, efficiency scorecard, fictional sample data | |
@@ -35,4 +35,8 @@ phases deepen it.
 - **Events** – append-only, state derived from them ([ADR-0002](adr/0002-append-only-events.md)).
 - **Worktree layout** – `~/wt/<project>/<TASK-ID>` by default (configurable), branch `<type prefix>/<TASK-ID>-<slug>`.
 - **Merging** – rebase onto the latest `dev`, run the gate on the rebased commit, then `merge --no-ff`, only while `dev` is still an ancestor of that commit, so the merged tree is the tree the gate verified.
-- **Demo** – `examples/demo-api` is a template; `tools/demo-setup.mjs` creates a separate repository from it. Hooks are written to that repository's local settings until user-level install arrives (P2).
+- **Demo** – `examples/demo-api` is a template; `tools/demo-setup.mjs` creates a separate repository from it and installs the hooks in that repository's local settings, so running the demo never touches `~/.claude`.
+- **Hook install** – `asdk hooks install` edits the user settings (`$CLAUDE_CONFIG_DIR/settings.json` or `~/.claude/settings.json`) on their text, records what it added, and backs up before every write; uninstall restores the original bytes ([ADR-0003](adr/0003-byte-preserving-settings-edits.md)). `--scope local` targets a project's `settings.local.json`.
+- **Hook command** – an absolute node path (Claude Code's hook PATH may lack node), a 10-second timeout, and a 5-second limit on waiting for the payload. Git Bash runs it on Windows; without Git Bash the PowerShell form is written (not yet tried with Claude Code).
+- **Sessions outside projects** – recorded with `project_id: null` so reports can show AI use outside tasks; `"record_unregistered": false` in `config.json` drops them. Paths are never recorded.
+- **Pausing** – `asdk disable` / `enable` switch recording off and on without touching settings; both are recorded so reports can mark the gap.

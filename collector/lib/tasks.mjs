@@ -1,4 +1,5 @@
-// Task lifecycle: start -> verify (any number) -> end.
+// Task lifecycle: start -> verify, block/resume, escalate (any number, in any order) -> end.
+// A blocked task is still open: it can be verified, escalated and ended.
 //
 // Task state is never stored on its own; it is derived from the event log every
 // time, so the log stays the single source of truth. Checks before a change read
@@ -19,6 +20,9 @@ export const RESULTS = ['pass', 'fail', 'error'];
 export const EXECUTORS = ['script', 'human'];
 export const OUTCOMES = ['accepted', 'rejected', 'abandoned', 'deferred'];
 export const COMPLETED_BY = ['ai', 'ai_with_human_fixes', 'human'];
+export const UPDATE_STATES = ['blocked', 'resumed'];
+export const WAITING_ON = ['human', 'ai', 'external', 'quota', 'other'];
+export const ESCALATION_KINDS = ['takeover', 'repeated_failure', 'risk_decision'];
 
 const TASK_ID = /^[A-Z][A-Z0-9]*-[0-9]+$/;
 
@@ -55,6 +59,8 @@ export function deriveTasks(events) {
         worktree: undefined,
         verifications: [],
         gate_runs: [],
+        blocks: [], // { from, to?, reason, waiting_on? }
+        escalations: [], // { ts, kind, reason }
         sessions: new Set(),
         agents: new Set(),
         flags: new Set(),
@@ -71,11 +77,31 @@ export function deriveTasks(events) {
       case 'task.verify':
         t.verifications.push({ ts: e.ts, check: d.check, result: d.result, executor: d.executor, sha: d.sha, gate: d.gate });
         break;
+      case 'task.block':
+        if (t.status !== 'active') {
+          t.flags.add('unexpected_block');
+          break;
+        }
+        t.status = 'blocked';
+        t.blocks.push({ from: e.ts, reason: d.reason, waiting_on: d.waiting_on });
+        break;
+      case 'task.resume':
+        if (t.status !== 'blocked') {
+          t.flags.add('unexpected_resume');
+          break;
+        }
+        t.status = 'active';
+        t.blocks.at(-1).to = e.ts;
+        break;
+      case 'task.escalate':
+        t.escalations.push({ ts: e.ts, kind: d.kind, reason: d.reason });
+        break;
       case 'task.end':
         if (t.status === 'ended') {
           t.flags.add('duplicate_task_end');
           break;
         }
+        if (t.status === 'blocked') t.blocks.at(-1).to = e.ts; // ending also ends the block
         t.status = 'ended';
         t.ended_at = e.ts;
         t.outcome = d.outcome;
@@ -144,12 +170,18 @@ export function loadTaskRecords(env) {
   return deriveTasks(events).tasks;
 }
 
-function activeTask(env, taskId) {
+/** A task that has started and not ended (active or blocked). */
+function openTask(env, taskId) {
   if (!TASK_ID.test(taskId ?? '')) throw usageError(`invalid task id "${taskId}" (expected something like DEMO-001)`);
   const t = loadTaskRecords(env).get(taskId);
   if (!t) throw ruleError(`task ${taskId} has not been started`);
-  if (t.status !== 'active') throw ruleError(`task ${taskId} is ${t.status}`);
+  if (t.status === 'ended') throw ruleError(`task ${taskId} has ended`);
   return t;
+}
+
+function checkReason(reason) {
+  if (typeof reason !== 'string' || reason.trim() === '') throw usageError('--reason is required');
+  if (reason.length > 256) throw usageError('--reason must be at most 256 characters');
 }
 
 const oneOf = (value, allowed, label) => {
@@ -208,7 +240,7 @@ export function verifyTask(env, { taskId, check, result, executor, sha, gate, cw
   if (commit && !/^([0-9a-f]{40}|[0-9a-f]{64})$/.test(commit)) throw usageError(`--sha must be a full commit hash`);
 
   return withCollectorLock(env, 'tasks', () => {
-    const t = activeTask(env, taskId);
+    const t = openTask(env, taskId);
     return appendEvent(
       env,
       makeEvent({ source, event: 'task.verify', project_id: t.project_id, task_id: taskId, data: { check, result, executor, sha: commit ?? undefined, gate } }, now),
@@ -221,10 +253,42 @@ export function endTask(env, { taskId, outcome, completedBy, now }) {
   if (completedBy !== undefined) oneOf(completedBy, COMPLETED_BY, '--completed-by');
   if (outcome === 'accepted' && completedBy === undefined) throw usageError('--completed-by is required when the outcome is accepted');
   return withCollectorLock(env, 'tasks', () => {
-    const t = activeTask(env, taskId);
+    const t = openTask(env, taskId);
     return appendEvent(
       env,
       makeEvent({ source: 'cli', event: 'task.end', project_id: t.project_id, task_id: taskId, data: { outcome, completed_by: completedBy } }, now),
     );
+  });
+}
+
+/** Marks an open task blocked (with what it waits on) or resumes a blocked one. */
+export function updateTask(env, { taskId, state, reason, waitingOn, now }) {
+  oneOf(state, UPDATE_STATES, '--state');
+  checkReason(reason);
+  if (waitingOn !== undefined) {
+    if (state !== 'blocked') throw usageError('--waiting-on only goes with --state blocked');
+    oneOf(waitingOn, WAITING_ON, '--waiting-on');
+  }
+  return withCollectorLock(env, 'tasks', () => {
+    const t = openTask(env, taskId);
+    if (state === 'blocked' && t.status === 'blocked') throw ruleError(`task ${taskId} is already blocked`);
+    if (state === 'resumed' && t.status !== 'blocked') throw ruleError(`task ${taskId} is not blocked`);
+    return appendEvent(
+      env,
+      makeEvent(
+        { source: 'cli', event: state === 'blocked' ? 'task.block' : 'task.resume', project_id: t.project_id, task_id: taskId, data: { reason, waiting_on: waitingOn } },
+        now,
+      ),
+    );
+  });
+}
+
+/** Records that a human had to step in: took over, after repeated failures, or to decide on a risk. */
+export function escalateTask(env, { taskId, kind, reason, now }) {
+  oneOf(kind, ESCALATION_KINDS, '--kind');
+  checkReason(reason);
+  return withCollectorLock(env, 'tasks', () => {
+    const t = openTask(env, taskId);
+    return appendEvent(env, makeEvent({ source: 'cli', event: 'task.escalate', project_id: t.project_id, task_id: taskId, data: { kind, reason } }, now));
   });
 }

@@ -6,7 +6,7 @@ import { createSandbox, git, makeRepo, runAsdk } from '../../test/helpers/sandbo
 import { validateContract } from '../../core/validate.mjs';
 import { registerProject } from '../lib/registry.mjs';
 import { appendEvent, eventsDir, makeEvent } from '../lib/store.mjs';
-import { deriveTasks, endTask, loadTasks, startTask, toContract, verifyTask } from '../lib/tasks.mjs';
+import { deriveTasks, endTask, escalateTask, loadTasks, startTask, toContract, updateTask, verifyTask } from '../lib/tasks.mjs';
 
 function setup(t, label) {
   const sb = createSandbox(t, label);
@@ -55,8 +55,8 @@ test('verify and end enforce the lifecycle rules', (t) => {
   assert.throws(() => verifyTask(sb.env, { taskId: 'DEMO-001', check: 'unit', result: 'pass', executor: 'script', sha: 'abc' }), /full commit hash/);
   assert.throws(() => endTask(sb.env, { taskId: 'DEMO-001', outcome: 'accepted' }), /--completed-by is required/);
   endTask(sb.env, { taskId: 'DEMO-001', outcome: 'abandoned' });
-  assert.throws(() => endTask(sb.env, { taskId: 'DEMO-001', outcome: 'abandoned' }), /is ended/);
-  assert.throws(() => verifyTask(sb.env, { taskId: 'DEMO-001', check: 'unit', result: 'pass', executor: 'script' }), /is ended/);
+  assert.throws(() => endTask(sb.env, { taskId: 'DEMO-001', outcome: 'abandoned' }), /has ended/);
+  assert.throws(() => verifyTask(sb.env, { taskId: 'DEMO-001', check: 'unit', result: 'pass', executor: 'script' }), /has ended/);
 });
 
 test('duplicate starts and events without a start are flagged, not lost', () => {
@@ -119,4 +119,50 @@ test('a damaged task record line stops task changes and names the place', (t) =>
   assert.match(r.stderr, /_manual\.jsonl:2/);
   // Listing still works: it reads, it does not change anything.
   assert.equal(runAsdk(sb, ['task', 'list']).status, 0);
+});
+
+test('blocked and resumed: a blocked task stays open and the blocked time is kept', (t) => {
+  const { sb, root } = setup(t, 'task-block');
+  const at = (m) => new Date(Date.UTC(2026, 10, 2, 9, m));
+  start(sb, root, { now: at(0) });
+  assert.throws(() => updateTask(sb.env, { taskId: 'DEMO-001', state: 'resumed', reason: 'x' }), /is not blocked/);
+  updateTask(sb.env, { taskId: 'DEMO-001', state: 'blocked', reason: '等規格確認', waitingOn: 'human', now: at(10) });
+  assert.throws(() => updateTask(sb.env, { taskId: 'DEMO-001', state: 'blocked', reason: 'x' }), /already blocked/);
+  // Still open: verify works while blocked.
+  verifyTask(sb.env, { taskId: 'DEMO-001', check: 'unit', result: 'pass', executor: 'script', cwd: root, now: at(15) });
+  updateTask(sb.env, { taskId: 'DEMO-001', state: 'resumed', reason: '已確認', now: at(40) });
+  updateTask(sb.env, { taskId: 'DEMO-001', state: 'blocked', reason: 'quota', waitingOn: 'quota', now: at(50) });
+  endTask(sb.env, { taskId: 'DEMO-001', outcome: 'deferred', now: at(70) });
+
+  const task = loadTasks(sb.env).get('DEMO-001');
+  assert.deepEqual(task.blocks, [
+    { from: at(10).toISOString(), to: at(40).toISOString(), reason: '等規格確認', waiting_on: 'human' },
+    { from: at(50).toISOString(), to: at(70).toISOString(), reason: 'quota', waiting_on: 'quota' },
+  ]);
+  assert.equal(toContract(task).status, 'ended');
+});
+
+test('update and escalate validate their input', (t) => {
+  const { sb, root } = setup(t, 'task-update-validate');
+  start(sb, root);
+  assert.throws(() => updateTask(sb.env, { taskId: 'DEMO-001', state: 'paused', reason: 'x' }), /--state must be one of/);
+  assert.throws(() => updateTask(sb.env, { taskId: 'DEMO-001', state: 'blocked', reason: ' ' }), /--reason is required/);
+  assert.throws(() => updateTask(sb.env, { taskId: 'DEMO-001', state: 'blocked', reason: 'x', waitingOn: 'boss' }), /--waiting-on must be one of/);
+  assert.throws(() => updateTask(sb.env, { taskId: 'DEMO-001', state: 'resumed', reason: 'x', waitingOn: 'human' }), /only goes with --state blocked/);
+  assert.throws(() => escalateTask(sb.env, { taskId: 'DEMO-001', kind: 'panic', reason: 'x' }), /--kind must be one of/);
+  assert.throws(() => escalateTask(sb.env, { taskId: 'DEMO-002', kind: 'takeover', reason: 'x' }), /has not been started/);
+});
+
+test('asdk task update and escalate', (t) => {
+  const { sb, root } = setup(t, 'task-update-cli');
+  start(sb, root);
+  let r = runAsdk(sb, ['task', 'update', 'DEMO-001', '--state', 'blocked', '--reason', 'waiting for review', '--waiting-on', 'human']);
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /DEMO-001 blocked \(waiting on human\)/);
+  r = runAsdk(sb, ['task', 'escalate', 'DEMO-001', '--kind', 'repeated_failure', '--reason', 'G1 failed three times']);
+  assert.equal(r.status, 0, r.stderr);
+  r = runAsdk(sb, ['task', 'list']);
+  assert.match(r.stdout, /^DEMO-001\tdemo-api\tblocked/m);
+  assert.equal(runAsdk(sb, ['task', 'update', 'DEMO-001', '--state', 'resumed']).status, 2);
+  assert.equal(loadTasks(sb.env).get('DEMO-001').escalations[0].kind, 'repeated_failure');
 });

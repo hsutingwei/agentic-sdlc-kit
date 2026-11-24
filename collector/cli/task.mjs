@@ -1,14 +1,16 @@
-// asdk task start|verify|end|list
+// asdk task start|verify|update|escalate|end|list
 
 import { parse, requireOption } from '../../core/cli.mjs';
 import { usageError } from '../../core/errors.mjs';
-import { endTask, loadTasks, startTask, toContract, verifyTask } from '../lib/tasks.mjs';
+import { endTask, escalateTask, loadTasks, startTask, toContract, updateTask, verifyTask } from '../lib/tasks.mjs';
 
 const USAGE = {
   start:
     'asdk task start <ID> --type <bugfix|feature|refactor|test|docs|config|investigation> --risk <low|medium|high|critical> ' +
     '[--estimate <hours without AI>] [--title <text>] [--fixes <ID,...>] [--project <id>]',
   verify: 'asdk task verify <ID> --check <build|unit|integration|ui|acceptance> --result <pass|fail|error> --executor <script|human> [--sha <commit>]',
+  update: 'asdk task update <ID> --state <blocked|resumed> --reason <text> [--waiting-on <human|ai|external|quota|other>]',
+  escalate: 'asdk task escalate <ID> --kind <takeover|repeated_failure|risk_decision> --reason <text>',
   end: 'asdk task end <ID> --outcome <accepted|rejected|abandoned|deferred> [--completed-by <ai|ai_with_human_fixes|human>]',
   list: 'asdk task list [--json]',
 };
@@ -62,6 +64,20 @@ export async function runTask(argv, { env, cwd, out }) {
         sha: values.sha,
       });
       out(`recorded ${e.data.check} ${e.data.result} for ${e.task_id}${e.data.sha ? ` at ${e.data.sha.slice(0, 12)}` : ''}`);
+      return 0;
+    }
+    case 'update': {
+      const u = USAGE.update;
+      const { values, positionals } = parse(rest, { state: { type: 'string' }, reason: { type: 'string' }, 'waiting-on': { type: 'string' } }, { positionals: 1, usage: u });
+      const e = updateTask(env, { taskId: taskId(positionals, u), state: requireOption(values, 'state', u), reason: requireOption(values, 'reason', u), waitingOn: values['waiting-on'] });
+      out(`${e.task_id} ${e.event === 'task.block' ? `blocked${e.data.waiting_on ? ` (waiting on ${e.data.waiting_on})` : ''}` : 'resumed'}`);
+      return 0;
+    }
+    case 'escalate': {
+      const u = USAGE.escalate;
+      const { values, positionals } = parse(rest, { kind: { type: 'string' }, reason: { type: 'string' } }, { positionals: 1, usage: u });
+      const e = escalateTask(env, { taskId: taskId(positionals, u), kind: requireOption(values, 'kind', u), reason: requireOption(values, 'reason', u) });
+      out(`escalated ${e.task_id}: ${e.data.kind}`);
       return 0;
     }
     case 'end': {

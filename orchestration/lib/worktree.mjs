@@ -31,7 +31,7 @@ const BRANCH_PREFIX = {
 function activeTask(env, taskId) {
   const task = loadTaskRecords(env).get(taskId);
   if (!task) throw ruleError(`task ${taskId} has not been started`);
-  if (task.status !== 'active') throw ruleError(`task ${taskId} is ${task.status}`);
+  if (task.status === 'ended') throw ruleError(`task ${taskId} has ended`);
   return task;
 }
 

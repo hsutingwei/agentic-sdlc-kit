@@ -80,7 +80,7 @@ test('wt finish rebases, gates the rebased commit, merges --no-ff and cleans up'
 test('a failing gate keeps the worktree and does not merge', (t) => {
   const { sb, root } = setup(t, 'wt-gatefail');
   const wt = newWorktree(sb.env, { taskId: 'DEMO-001' });
-  commitIn(sb, wt.path, 'test/broken.test.mjs', "import { test } from 'node:test';\ntest('x', () => { throw new Error('no'); });\n");
+  commitIn(sb, wt.path, 'test/unit/broken.test.mjs', "import { test } from 'node:test';\ntest('x', () => { throw new Error('no'); });\n");
   const devBefore = git(sb, root, 'rev-parse', 'dev').trim();
   const result = finishWorktree(sb.env, { taskId: 'DEMO-001' });
   assert.equal(result.merged, false);

@@ -100,7 +100,7 @@ test('asdk gate run and gate list', (t) => {
   assert.match(ok.stdout, /PASS {4}syntax check/);
   assert.match(ok.stdout, /result: pass/);
 
-  writeFileSync(path.join(repo, 'test', 'fails.test.mjs'), "import { test } from 'node:test';\ntest('x', () => { throw new Error('boom'); });\n");
+  writeFileSync(path.join(repo, 'test', 'unit', 'fails.test.mjs'), "import { test } from 'node:test';\ntest('x', () => { throw new Error('boom'); });\n");
   const failed = runAsdk(sb, ['gate', 'run', 'G1'], { cwd: repo });
   assert.equal(failed.status, 1);
   assert.match(failed.stdout, /FAIL {4}unit tests/);

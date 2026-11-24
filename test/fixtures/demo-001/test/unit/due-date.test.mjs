@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createStore, ValidationError } from '../src/todos.mjs';
+import { createStore, ValidationError } from '../../src/todos.mjs';
 
 test('AC1: due_date accepts YYYY-MM-DD and rejects anything else', () => {
   const store = createStore();

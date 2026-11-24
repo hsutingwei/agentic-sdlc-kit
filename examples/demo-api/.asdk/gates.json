@@ -8,7 +8,7 @@
       "verifies": "unit",
       "steps": [
         { "name": "syntax check", "kind": "lint", "builtin": "syntax-check" },
-        { "name": "unit tests", "kind": "unit", "run": ["node", "--test"] }
+        { "name": "unit tests", "kind": "unit", "run": ["node", "--test", "test/unit/**/*.test.mjs"] }
       ]
     }
   }

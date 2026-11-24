@@ -17,7 +17,7 @@ const git = (...args) => execFileSync('git', args, { cwd: worktree, stdio: 'pipe
 
 if (attempt === 'attempt-1') {
   copyFileSync(path.join(here, 'src', 'todos.mjs'), path.join(worktree, 'src', 'todos.mjs'));
-  copyFileSync(path.join(here, 'test', 'due-date.test.mjs'), path.join(worktree, 'test', 'due-date.test.mjs'));
+  copyFileSync(path.join(here, 'test', 'unit', 'due-date.test.mjs'), path.join(worktree, 'test', 'unit', 'due-date.test.mjs'));
   const server = path.join(worktree, 'src', 'server.mjs');
   const before = readFileSync(server, 'utf8');
   const after = before.replace(
@@ -29,7 +29,7 @@ if (attempt === 'attempt-1') {
   git('add', '.');
   git('commit', '-q', '-m', 'feat: Add due dates to todo items (DEMO-001)');
 } else if (attempt === 'attempt-2') {
-  const file = path.join(worktree, 'test', 'todos.test.mjs');
+  const file = path.join(worktree, 'test', 'unit', 'todos.test.mjs');
   writeFileSync(file, readFileSync(file, 'utf8').replace(/done: (true|false) \}/g, 'done: $1, due_date: null }'));
   git('add', '.');
   git('commit', '-q', '-m', 'test: expect due_date null on existing items (DEMO-001)');

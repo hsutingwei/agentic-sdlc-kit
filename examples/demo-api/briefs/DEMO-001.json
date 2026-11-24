@@ -19,7 +19,7 @@
   "base_branch": "dev",
   "estimate_hours": 6,
   "context": {
-    "read_first": ["src/todos.mjs", "src/server.mjs", "test/todos.test.mjs"],
+    "read_first": ["src/todos.mjs", "src/server.mjs", "test/unit/todos.test.mjs"],
     "notes": "Keep node:http only; no dependencies. Add tests for every acceptance criterion."
   }
 }

@@ -16,6 +16,9 @@ npm start   # http://127.0.0.1:3000
 npm test
 ```
 
+Unit tests of the store are in `test/unit/`; tests that go through HTTP are in
+`test/integration/`, so a fast gate can run the first alone.
+
 - `briefs/DEMO-001.json` – the task brief for the first demo task (due dates).
 - `.claude/agents/implementer.md` – the sub-agent that implements a brief.
 

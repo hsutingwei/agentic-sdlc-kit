@@ -45,6 +45,8 @@ export const SCOPES = ['user', 'local'];
 const ASDK_COMMAND = /asdk\.mjs["']?\s+hook\s*$/;
 
 const slash = (p) => p.split(path.sep).join('/');
+// Windows paths written into a hook command, also when the command is built for Windows elsewhere (tests).
+const winSlash = (p) => p.replace(/\\/g, '/');
 
 /** Git Bash runs hook commands on Windows when it is installed (docs/spike, finding 10). */
 export function findGitBash(env = process.env) {
@@ -63,8 +65,8 @@ export function findGitBash(env = process.env) {
  * Claude Code gives hooks may not contain node.
  */
 export function hookEntry({ env = process.env, platform = process.platform, execPath = process.execPath, asdk = ASDK_BIN } = {}) {
-  const node = platform === 'win32' ? slash(execPath) : execPath;
-  const script = platform === 'win32' ? slash(asdk) : asdk;
+  const node = platform === 'win32' ? winSlash(execPath) : execPath;
+  const script = platform === 'win32' ? winSlash(asdk) : asdk;
   const hook = { type: 'command', command: '', timeout: HOOK_TIMEOUT_SECONDS };
   if (platform === 'win32' && !findGitBash(env)) {
     // Without Git Bash Claude Code uses PowerShell, where a quoted path needs the call operator.

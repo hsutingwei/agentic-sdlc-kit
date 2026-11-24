@@ -86,16 +86,51 @@ function logError(env, message) {
   }
 }
 
-async function readStdin() {
-  if (process.stdin.isTTY) return '';
-  let text = '';
-  for await (const chunk of process.stdin) text += chunk;
-  return text;
+// Claude Code closes stdin after writing the payload. If it ever does not, the
+// hook gives up instead of holding the agent until Claude Code's own timeout.
+export const STDIN_TIMEOUT_MS = 5000;
+
+class StdinTimeout extends Error {}
+
+function readStdin(stdin, timeoutMs) {
+  if (stdin.isTTY) return Promise.resolve('');
+  return new Promise((resolve, reject) => {
+    let text = '';
+    const timer = setTimeout(() => {
+      stdin.destroy();
+      reject(new StdinTimeout());
+    }, timeoutMs);
+    stdin.setEncoding('utf8');
+    stdin.on('data', (chunk) => {
+      text += chunk;
+    });
+    stdin.on('end', () => {
+      clearTimeout(timer);
+      resolve(text);
+    });
+    stdin.on('error', (err) => {
+      clearTimeout(timer);
+      reject(err);
+    });
+  });
 }
 
-export async function runHook(_argv, { env, cwd }) {
+function stdinTimeout(env) {
+  // Only tests shorten the wait.
+  const ms = Number(env.AGENTIC_HOOK_STDIN_TIMEOUT_MS);
+  return Number.isInteger(ms) && ms > 0 ? ms : STDIN_TIMEOUT_MS;
+}
+
+export async function runHook(_argv, { env, cwd, stdin = process.stdin }) {
   try {
-    const raw = await readStdin();
+    let raw;
+    try {
+      raw = await readStdin(stdin, stdinTimeout(env));
+    } catch (err) {
+      if (!(err instanceof StdinTimeout)) throw err;
+      logError(env, `no payload: stdin stayed open for ${stdinTimeout(env)} ms`);
+      return 0;
+    }
     let payload;
     try {
       payload = JSON.parse(raw);

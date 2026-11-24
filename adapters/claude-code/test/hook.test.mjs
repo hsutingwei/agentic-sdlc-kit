@@ -1,8 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import { createSandbox, git, makeRepo, runAsdk } from '../../../test/helpers/sandbox.mjs';
+import { ASDK, createSandbox, git, makeRepo, runAsdk } from '../../../test/helpers/sandbox.mjs';
 import { dataPath } from '../../../collector/lib/paths.mjs';
 import { registerProject } from '../../../collector/lib/registry.mjs';
 import { writeWorktreeMarker } from '../../../collector/lib/state.mjs';
@@ -129,4 +130,18 @@ test('a broken metrics directory does not break the hook', (t) => {
   assert.equal(r.status, 0);
   assert.equal(r.stderr, '');
   assert.equal(existsSync(path.join(wt, 'README.md', 'events')), false);
+});
+
+test('the hook gives up when stdin is never closed', async (t) => {
+  const { sb } = setup(t, 'hook-stdin');
+  const env = { ...sb.env, AGENTIC_HOOK_STDIN_TIMEOUT_MS: '300' };
+  const started = Date.now();
+  const child = spawn(process.execPath, [ASDK, 'hook'], { cwd: sb.root, env, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true });
+  child.stdin.write('{"hook_event_name":"Stop"'); // and never end it
+  const status = await new Promise((resolve) => child.on('exit', resolve));
+  child.stdin.destroy();
+  assert.equal(status, 0);
+  assert.ok(Date.now() - started < 4000, 'exits well before the default timeout');
+  assert.match(readFileSync(dataPath(sb.env, 'collector-errors.log'), 'utf8'), /stdin stayed open for 300 ms/);
+  assert.equal(readEvents(sb.env).events.length, 0);
 });

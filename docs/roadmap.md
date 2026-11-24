@@ -8,7 +8,7 @@ ends with `npm test` actually run and the result reported.
 | P0 | Skeleton, test runner and sandbox, denylist pre-commit hook, CI with gitleaks, `core/` contracts and validator, ADR-0001, [Claude Code behaviour spike](spike/claude-code-behavior.md) | done; CI not yet run |
 | P1 | End-to-end slice on DEMO-001: `wt new` → sub-agent implements → G1 → `task verify` → merge to `dev` → `task end` → one scorecard row ([demo](demo.md)) | done |
 | P2 | Collector: project registry (worktree-aware, `session set-project`, `project remove`), hook recording incl. `SubagentStart`/`SubagentStop`/`PostToolUseFailure`, `hooks install/uninstall` (byte-exact, [ADR-0003](adr/0003-byte-preserving-settings-edits.md)), `enable/disable`, `health` | done |
-| P3 | Collector: task lifecycle CLI, lock files, multi-process contention test | |
+| P3 | Collector: task lifecycle CLI (`task update/escalate`, `human start/stop/adjust/status`), lock files ([ADR-0004](adr/0004-lock-files.md)), multi-process contention tests | done |
 | P4 | Collector: token usage harvest, quota snapshots, plan changes | |
 | P5 | Collector: reports, push check, efficiency scorecard, fictional sample data | |
 | P6 | Governance templates and gates applied to `examples/demo-api`, role and model-tier profiles | |
@@ -59,4 +59,9 @@ Expected bottlenecks, most important first (to be confirmed by P5 data):
 - **Hook install** – `asdk hooks install` edits the user settings (`$CLAUDE_CONFIG_DIR/settings.json` or `~/.claude/settings.json`) on their text, records what it added, and backs up before every write; uninstall restores the original bytes ([ADR-0003](adr/0003-byte-preserving-settings-edits.md)). `--scope local` targets a project's `settings.local.json`.
 - **Hook command** – an absolute node path (Claude Code's hook PATH may lack node), a 10-second timeout, and a 5-second limit on waiting for the payload. Git Bash runs it on Windows; without Git Bash the PowerShell form is written (not yet tried with Claude Code).
 - **Sessions outside projects** – recorded with `project_id: null` so reports can show AI use outside tasks; `"record_unregistered": false` in `config.json` drops them. Paths are never recorded.
+- **Locks** – one lock file per resource (`tasks`, `config`, `recording`, `claude-settings`); stale only when older than 30 s and its process is gone; give up after 10 s. Hooks take none ([ADR-0004](adr/0004-lock-files.md)).
+- **Damaged records** – a damaged line in the manual stream stops task changes and names the file and line; damaged hook lines are only counted.
+- **Event order** – streams are merged by time, but each keeps its own line order, because process clocks can disagree by a few milliseconds.
+- **Blocked tasks** – `task update --state blocked --waiting-on human|ai|external|quota|other`; a blocked task stays open (verify, escalate, end).
+- **Human time** – one timer at a time (`--switch` moves it), activities spec, review, fix, acceptance, other; corrections are separate adjustments and a total never goes below 0; `task end` stops a running timer and flags it; periods over 8 h are flagged.
 - **Pausing** – `asdk disable` / `enable` switch recording off and on without touching settings; both are recorded so reports can mark the gap.

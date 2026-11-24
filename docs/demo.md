@@ -46,6 +46,17 @@ asdk task start DEMO-001 --type feature --risk low --estimate 6 --title "Add due
 `--estimate` is your estimate of the effort **without** AI. It is recorded once
 and never edited; it is the baseline of the efficiency score.
 
+Time yourself whenever you work on the task; your hours are the other half of
+the score:
+
+```sh
+asdk human start DEMO-001 --activity spec    # spec, review, fix, acceptance or other
+asdk human stop
+```
+
+Forgot the timer? `asdk human adjust DEMO-001 --minutes 15 --reason "..."` adds a
+correction; nothing recorded is overwritten.
+
 ## 3. Create the task worktree
 
 ```sh
@@ -89,10 +100,13 @@ report counts that.
 ## 7. Accept and end
 
 Check the result yourself (run `npm start`, try `GET /todos?overdue=true`),
-then record it:
+timing it, then record it:
 
 ```sh
 cd ~/work/demo-api
+asdk human start DEMO-001 --activity acceptance
+# ... check ...
+asdk human stop
 asdk task verify DEMO-001 --check acceptance --result pass --executor human
 asdk task end DEMO-001 --outcome accepted --completed-by ai
 ```
@@ -105,9 +119,9 @@ Use `--completed-by ai_with_human_fixes` if you had to change the code.
 asdk report
 ```
 
-Open `~/.agentic-metrics/reports/summary.md`. The row is `Partial` with the flag
-`no_human_time`: human time is recorded from a later phase on, and until then
-the efficiency column stays empty instead of being guessed.
+Open `~/.agentic-metrics/reports/summary.md`. With your time recorded the row is
+`Complete` and shows your hours. The efficiency column stays empty until P5,
+which adds the quality discounts; it is never guessed.
 
 ## Clean up
 

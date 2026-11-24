@@ -14,6 +14,7 @@
       "verifies": "unit",
       "steps": [
         { "name": "syntax check", "kind": "lint", "builtin": "syntax-check" },
+        { "name": "rules from mistakes", "kind": "lint", "builtin": "rules" },
         { "name": "unit tests", "kind": "unit", "run": ["node", "--test", "test/unit/**/*.test.mjs"] }
       ]
     },
@@ -22,6 +23,7 @@
       "verifies": "integration",
       "steps": [
         { "name": "syntax check", "kind": "lint", "builtin": "syntax-check" },
+        { "name": "rules from mistakes", "kind": "lint", "builtin": "rules" },
         { "name": "agent references", "kind": "static", "builtin": "references" },
         { "name": "deny rules in sync", "kind": "static", "builtin": "deny-sync" },
         { "name": "unit tests", "kind": "unit", "run": ["node", "--test", "test/unit/**/*.test.mjs"] },
@@ -33,6 +35,7 @@
       "steps": [
         { "name": "clean tree", "kind": "static", "builtin": "clean-tree" },
         { "name": "syntax check", "kind": "lint", "builtin": "syntax-check" },
+        { "name": "rules from mistakes", "kind": "lint", "builtin": "rules" },
         { "name": "agent references", "kind": "static", "builtin": "references" },
         { "name": "deny rules in sync", "kind": "static", "builtin": "deny-sync" },
         { "name": "unit tests", "kind": "unit", "run": ["node", "--test", "test/unit/**/*.test.mjs"] },

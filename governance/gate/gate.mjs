@@ -19,12 +19,13 @@ import { appendEvent, makeEvent } from '../../collector/lib/store.mjs';
 import { CHECKS, loadTaskRecords, verifyTask } from '../../collector/lib/tasks.mjs';
 import { denySyncCheck, referencesCheck } from './checks.mjs';
 import { validateMergePolicy } from './policy.mjs';
+import { rulesStep } from './rules.mjs';
 import { changedPaths, higherRisk, loadRiskPaths, pathMinimum } from './risk.mjs';
 
 const CONFIG_FILE = path.join('.asdk', 'gates.json');
 const KINDS = ['lint', 'build', 'unit', 'integration', 'ui', 'static'];
 const NAME = /^[A-Za-z0-9][A-Za-z0-9_.-]*$/;
-const BUILTINS = { 'syntax-check': syntaxCheck, 'clean-tree': cleanTree, references: referencesCheck, 'deny-sync': denySyncCheck };
+const BUILTINS = { 'syntax-check': syntaxCheck, 'clean-tree': cleanTree, references: referencesCheck, 'deny-sync': denySyncCheck, rules: rulesStep };
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
 
 export function loadGateConfig(top) {

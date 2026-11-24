@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "rules": [
+    {
+      "id": "utc-dates",
+      "files": [
+        "src/**/*.mjs"
+      ],
+      "pattern": "\\.(getFullYear|getMonth|getDate|getDay|getHours)\\(|toLocaleDateString\\(",
+      "message": "Compare dates in UTC: use getUTCFullYear(), getUTCMonth() and getUTCDate(), or toISOString().slice(0, 10). Local time makes 'overdue' depend on the server's time zone.",
+      "origin": "DEMO-001 AC2 (fictional): overdue items were computed in the server's local time",
+      "examples": {
+        "bad": [
+          "const today = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;",
+          "return due < new Date().toLocaleDateString();"
+        ],
+        "good": [
+          "const today = new Date().toISOString().slice(0, 10);",
+          "const day = d.getUTCDate();"
+        ]
+      }
+    }
+  ]
+}

@@ -10,7 +10,7 @@ const USAGE = {
   start:
     'asdk task start <ID> --type <bugfix|feature|refactor|test|docs|config|investigation> --risk <low|medium|high|critical> ' +
     '[--estimate <hours without AI>] [--title <text>] [--fixes <ID,...>] [--project <id>]',
-  verify: 'asdk task verify <ID> --check <build|unit|integration|ui|acceptance> --result <pass|fail|error> --executor <script|human> [--sha <commit>]',
+  verify: 'asdk task verify <ID> --check <build|unit|integration|ui|review|acceptance> --result <pass|fail|error> --executor <script|agent|human> [--sha <commit>]',
   update: 'asdk task update <ID> --state <blocked|resumed> --reason <text> [--waiting-on <human|ai|external|quota|other>]',
   escalate: 'asdk task escalate <ID> --kind <takeover|repeated_failure|risk_decision> --reason <text>',
   end: 'asdk task end <ID> --outcome <accepted|rejected|abandoned|deferred> [--completed-by <ai|ai_with_human_fixes|human>]',

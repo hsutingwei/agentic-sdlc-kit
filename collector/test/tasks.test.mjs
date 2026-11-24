@@ -53,6 +53,11 @@ test('verify and end enforce the lifecycle rules', (t) => {
   assert.throws(() => verifyTask(sb.env, { taskId: 'DEMO-001', check: 'acceptance', result: 'pass', executor: 'script' }), /only be recorded by a human/);
   verifyTask(sb.env, { taskId: 'DEMO-001', check: 'acceptance', result: 'pass', executor: 'human', sha: 'a'.repeat(40) });
   assert.throws(() => verifyTask(sb.env, { taskId: 'DEMO-001', check: 'unit', result: 'pass', executor: 'script', sha: 'abc' }), /full commit hash/);
+  // A review, by an agent or a human, is bound to the commit it reviewed.
+  assert.throws(() => verifyTask(sb.env, { taskId: 'DEMO-001', check: 'review', result: 'pass', executor: 'agent' }), /needs the commit it reviewed/);
+  assert.throws(() => verifyTask(sb.env, { taskId: 'DEMO-001', check: 'acceptance', result: 'pass', executor: 'agent' }), /only be recorded by a human/);
+  const review = verifyTask(sb.env, { taskId: 'DEMO-001', check: 'review', result: 'pass', executor: 'agent', cwd: root });
+  assert.equal(review.data.sha, git(sb, root, 'rev-parse', 'HEAD').trim());
   assert.throws(() => endTask(sb.env, { taskId: 'DEMO-001', outcome: 'accepted' }), /--completed-by is required/);
   endTask(sb.env, { taskId: 'DEMO-001', outcome: 'abandoned' });
   assert.throws(() => endTask(sb.env, { taskId: 'DEMO-001', outcome: 'abandoned' }), /has ended/);

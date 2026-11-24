@@ -16,9 +16,10 @@ import { appendEvent, MANUAL_STREAM, makeEvent, readEvents } from './store.mjs';
 
 export const TASK_TYPES = ['bugfix', 'feature', 'refactor', 'test', 'docs', 'config', 'investigation'];
 export const RISKS = ['low', 'medium', 'high', 'critical'];
-export const CHECKS = ['build', 'unit', 'integration', 'ui', 'acceptance'];
+export const CHECKS = ['build', 'unit', 'integration', 'ui', 'review', 'acceptance'];
 export const RESULTS = ['pass', 'fail', 'error'];
-export const EXECUTORS = ['script', 'human'];
+// agent: a reviewer or verifier agent. Its verdict is recorded, never trusted alone for acceptance.
+export const EXECUTORS = ['script', 'agent', 'human'];
 export const OUTCOMES = ['accepted', 'rejected', 'abandoned', 'deferred'];
 export const COMPLETED_BY = ['ai', 'ai_with_human_fixes', 'human'];
 export const UPDATE_STATES = ['blocked', 'resumed'];
@@ -253,6 +254,8 @@ export function verifyTask(env, { taskId, check, result, executor, sha, gate, cw
   if (check === 'acceptance' && executor !== 'human') throw ruleError('acceptance can only be recorded by a human (--executor human)');
   const commit = sha ?? (cwd ? headSha(cwd, env) : null);
   if (commit && !/^([0-9a-f]{40}|[0-9a-f]{64})$/.test(commit)) throw usageError(`--sha must be a full commit hash`);
+  // A review vouches for one exact commit; without it the merge rules could not use it.
+  if (check === 'review' && !commit) throw usageError('a review needs the commit it reviewed: pass --sha or run it inside the repository');
 
   return withCollectorLock(env, 'tasks', () => {
     const t = openTask(env, taskId);

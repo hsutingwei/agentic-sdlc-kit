@@ -20,7 +20,8 @@ import { AsdkError, usageError } from '../../core/errors.mjs';
 import { locateRepo } from '../../core/git.mjs';
 import { childValues, insertChild, JsonTextError, nodeAt, parseJsonText, removeChild } from '../../core/json-text.mjs';
 import { withCollectorLock } from '../../collector/lib/locks.mjs';
-import { dataPath, homeDir } from '../../collector/lib/paths.mjs';
+import { dataPath } from '../../collector/lib/paths.mjs';
+import { claudeConfigDir } from './paths.mjs';
 import { appendEvent, makeEvent } from '../../collector/lib/store.mjs';
 
 export const ASDK_BIN = fileURLToPath(new URL('../../bin/asdk.mjs', import.meta.url));
@@ -88,8 +89,7 @@ export function hookEntry({ env = process.env, platform = process.platform, exec
 export function settingsTarget(env, { scope = 'user', project, cwd = process.cwd() } = {}) {
   if (!SCOPES.includes(scope)) throw usageError(`--scope must be one of: ${SCOPES.join(', ')}`);
   if (scope === 'user') {
-    const configDir = env.CLAUDE_CONFIG_DIR?.trim();
-    return { scope, file: path.join(configDir ? path.resolve(configDir) : path.join(homeDir(env), '.claude'), 'settings.json') };
+    return { scope, file: path.join(claudeConfigDir(env), 'settings.json') };
   }
   const root = project ? path.resolve(cwd, project) : locateRepo(cwd)?.toplevel;
   if (!root || !existsSync(root)) throw usageError('--scope local needs --project <dir> or a working directory inside a git repository');

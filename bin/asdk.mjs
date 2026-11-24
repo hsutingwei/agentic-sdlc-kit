@@ -16,6 +16,7 @@ const COMMANDS = {
   report: { load: () => import('../collector/cli/report.mjs'), fn: 'runReport', help: 'write tasks.csv and summary.md' },
   wt: { load: () => import('../orchestration/cli/wt.mjs'), fn: 'runWt', help: 'create and finish a task worktree' },
   gate: { load: () => import('../governance/gate/cli.mjs'), fn: 'runGateCommand', help: 'run a configured gate and record the result' },
+  harvest: { load: () => import('../adapters/claude-code/harvest-cli.mjs'), fn: 'runHarvest', help: 'collect token usage from Claude Code transcripts' },
   hooks: { load: () => import('../adapters/claude-code/cli.mjs'), fn: 'runHooks', help: 'install, uninstall or inspect the Claude Code hooks' },
   hook: { load: () => import('../adapters/claude-code/hook.mjs'), fn: 'runHook', help: 'Claude Code hook entry (reads the payload from stdin)', neverFail: true },
 };

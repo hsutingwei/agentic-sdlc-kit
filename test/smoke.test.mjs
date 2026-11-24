@@ -36,7 +36,7 @@ test('child processes see the sandbox home, not the real one', (t) => {
     [
       "import os from 'node:os';",
       'console.log(JSON.stringify({',
-      '  home: os.homedir(),',
+      '  home: os.homedir(),', // asdk-allow: tests-use-sandbox-home - runs in a sandboxed child to prove it sees sb.home
       '  cwd: process.cwd(),',
       '  metrics: process.env.AGENTIC_METRICS_HOME,',
       '  claude: process.env.CLAUDE_CONFIG_DIR,',

@@ -73,7 +73,7 @@ test('a worktree outside the root is traced back through the git common director
 test('worktree root defaults to ~/wt and honours ~ in config', (t) => {
   const sb = createSandbox(t, 'reg-wtroot');
   assert.equal(worktreeRoot(sb.env, { projects: [] }), path.join(sb.home, 'wt'));
-  assert.equal(worktreeRoot(sb.env, { projects: [], worktrees: { root: '~/trees' } }), path.join(sb.home, 'trees'));
+  assert.equal(worktreeRoot(sb.env, { projects: [], worktrees: { root: '~/trees' } }), path.join(sb.home, 'trees')); // asdk-allow: tests-use-sandbox-home - ~ expands to the sandbox home
 });
 
 test('asdk project add, project list and resolve', (t) => {

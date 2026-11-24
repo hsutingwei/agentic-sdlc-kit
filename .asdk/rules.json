@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "rules": [
+    {
+      "id": "tests-use-sandbox-home",
+      "files": ["**/test/**/*.mjs"],
+      "pattern": "\\bhomedir\\(|['\"`]~[\\\\/]",
+      "message": "Tests must not read or write the real home directory: use createSandbox() from test/helpers/sandbox.mjs and its sb.home, sb.env and sb.join().",
+      "origin": "Hard rule 3 of this project (tests only use temporary directories and never touch the user's real settings); made a rule before any test broke it",
+      "examples": {
+        "bad": [
+          "const settings = path.join(os.homedir(), '.claude', 'settings.json');",
+          "const file = expandHome('~/.agentic-metrics/config.json');"
+        ],
+        "good": [
+          "const settings = path.join(sb.home, '.claude', 'settings.json');",
+          "test('user scope follows CLAUDE_CONFIG_DIR, then ~/.claude', (t) => {"
+        ]
+      }
+    }
+  ]
+}

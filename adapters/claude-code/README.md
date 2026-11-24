@@ -9,8 +9,10 @@ Contents:
 - **`hook.mjs`** – `asdk hook`: turns a Claude Code hook payload into an `event`. Fields come from an allowlist; prompt, tool input, tool output, answers and tool errors are reduced to their size. It always exits 0, gives up on stdin after 5 seconds, and returns at once while recording is disabled.
 - **`install.mjs`, `cli.mjs`** – `asdk hooks install|uninstall|status [--scope user|local] [--project <dir>]`. Edits settings on their text and undoes exactly what it added ([ADR-0003](../../docs/adr/0003-byte-preserving-settings-edits.md)); backups go to `~/.agentic-metrics/backups/claude-settings/`. Events: `SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `Stop`, `SubagentStart`, `SubagentStop`, `SessionEnd`.
 
+- **`transcript.mjs`, `harvest.mjs`, `harvest-cli.mjs`** – `asdk harvest --session|--task|--all`: token usage from transcripts, one count per API response, main session and sub-agents, into `usage/<session>.json` ([ADR-0005](../../docs/adr/0005-usage-harvest.md)).
+- **`rate-limit.mjs`** – quota windows from a stream-json `rate_limit_event`, used by `asdk quota snapshot --stdin`.
+
 Planned:
-- Transcript harvest for token usage per model and per sub-agent (P4).
 - Sub-agent definitions generated from role and model-tier profiles (P6).
 - Mapping of `task-brief` isolation levels to Claude Code: `fresh` → a sub-agent; `sterile` → a headless run in a directory outside the repository with CLAUDE.md, memory, skills, hooks and MCP disabled (P7).
 

@@ -8,7 +8,8 @@ Contracts shared by every module, and a validator that needs nothing but Node.
 | [`task-brief`](schemas/task-brief.schema.json) | the planner | the dispatched agent (its only input), the reviewer |
 | [`agent-report`](schemas/agent-report.schema.json) | any agent, any tool | the planner, which checks it against git and gate results |
 | [`gate-summary`](schemas/gate-summary.schema.json) | gates (`summary.json`) | collector, push check, planner |
-| [`event`](schemas/event.schema.json) | hooks, CLI, harvest, gates | collector |
+| [`event`](schemas/event.schema.json) | hooks, CLI, gates | collector |
+| [`usage`](schemas/usage.schema.json) | adapters (harvest from transcripts) | collector (`asdk usage`, reports) |
 
 The schemas are standard JSON Schema 2020-12, so other tools can validate them
 with any validator. Valid examples live in [`test/fixtures/`](test/fixtures/).

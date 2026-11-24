@@ -113,6 +113,20 @@ asdk task end DEMO-001 --outcome accepted --completed-by ai
 
 Use `--completed-by ai_with_human_fixes` if you had to change the code.
 
+`task end` also harvests the token usage of the task's sessions from Claude
+Code's transcripts. See it with:
+
+```sh
+asdk usage --task DEMO-001
+```
+
+To record how much quota the run used, copy the percentages from `/usage` in
+Claude Code:
+
+```sh
+asdk quota snapshot --window five_hour=12 --window seven_day=40 --plan max-5x
+```
+
 ## 8. Read the scorecard
 
 ```sh

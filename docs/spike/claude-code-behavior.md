@@ -116,6 +116,11 @@ record types it does not know. Unknown shapes make a row `Partial`.
 `unifiedWindows` with a `utilization` between 0 and 1 per window (a
 `seven_day` window in this run). Transcripts contained no rate-limit data.
 
+A follow-up run (2026-11-24, `--safe-mode --no-session-persistence`) confirmed
+the structure: `unifiedWindows` is an object keyed by window name, each entry
+holding `utilization` (0 to 1), `resetsAt` (Unix seconds) and `status`. The
+event also carries overage fields, which the kit drops.
+
 **Kit:** headless runs the kit launches record a quota snapshot from this event
 automatically. Interactive sessions still need `task snapshot` (manual or from
 stdin). Whether a five-hour window appears, and whether the status line receives

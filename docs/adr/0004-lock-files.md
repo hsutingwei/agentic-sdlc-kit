@@ -41,7 +41,9 @@ replacing damaged state with an empty one.
    processes were seen 1–2 ms out of step on Windows, enough to put a timer stop
    before its start when sorting by time. Readers merge streams by time but keep
    each stream's own line order; a line is never placed before the one appended
-   ahead of it.
+   ahead of it. Across streams only time orders events, so nothing depends on
+   that order to the millisecond: hook events attach to their task wherever they
+   sort, and a timer stop up to five seconds "before" its start counts as zero.
 
 ## Alternatives considered
 
@@ -62,5 +64,7 @@ replacing damaged state with an empty one.
 - Pid reuse could make a dead holder look alive; the lock then times out with a
   message telling the user which file to delete.
 - An event appended with a time earlier than the line before it in the same
-  stream is ordered after that line. Backdated records (plan changes in P4) must
-  therefore not be earlier than the last record, which the spec requires anyway.
+  stream is ordered after that line. Records about the past therefore carry the
+  time they refer to in their data and keep `ts` as the time of writing: a plan
+  change stores `effective_at`, which may be backdated but not before the
+  previous plan change.

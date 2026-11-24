@@ -2,7 +2,7 @@
 
 [English](README.md)
 
-> **狀態：開發初期（共 10 個階段，P3 已完成）。** 最精簡的端到端流程已經可以運作：
+> **狀態：開發初期（共 10 個階段，P4 已完成）。** 最精簡的端到端流程已經可以運作：
 > 任務 → worktree → 子代理 → gate → 合併 → scorecard；Claude Code 的 hooks 也能安裝，
 > 並且移除後不留痕跡。詳見 [roadmap](docs/roadmap.md)。
 
@@ -45,6 +45,8 @@ node <kit>/bin/asdk.mjs wt new DEMO-001 --slug due-date
 node <kit>/bin/asdk.mjs project add demo-api ~/work/demo-api
 node <kit>/bin/asdk.mjs hooks install     # 先備份，再修改 ~/.claude/settings.json
 node <kit>/bin/asdk.mjs health            # 檢查設定，並實際執行一次 hook 計時
+node <kit>/bin/asdk.mjs usage --task DEMO-001   # 依模型和子代理類型列出 token 用量
+node <kit>/bin/asdk.mjs quota status      # 目前方案和最新的額度快照
 node <kit>/bin/asdk.mjs disable           # 暫停紀錄；enable 恢復
 node <kit>/bin/asdk.mjs hooks uninstall   # 還原成原本的位元組
 ```
@@ -56,7 +58,7 @@ node <kit>/bin/asdk.mjs hooks uninstall   # 還原成原本的位元組
 
 | 模組 | 用途 | 階段 |
 |---|---|---|
-| [`core/`](core/) | 所有模組共用的契約（任務、任務簡報、agent 報告、gate 結果、事件），以及不依賴第三方套件的驗證器 | P0 ✅ |
+| [`core/`](core/) | 所有模組共用的契約（任務、任務簡報、agent 報告、gate 結果、事件、token 用量），以及不依賴第三方套件的驗證器 | P0 ✅ |
 | [`collector/`](collector/) | 記錄每個任務從開始到驗收的過程：hook 事件、任務生命週期、token 用量、報表 | P1–P5 |
 | [`governance/`](governance/) | agent 指令範本、權限範例、依風險分級的關卡（G1/G2/G3） | P6 |
 | [`orchestration/`](orchestration/) | 指揮官流程、依模型等級派工給子代理、平行開發用的 worktree 池 | P1、P7 |

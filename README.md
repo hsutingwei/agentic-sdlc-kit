@@ -2,7 +2,7 @@
 
 [繁體中文](README.zh-TW.md)
 
-> **Status: early development (P3 of 10 done).** A minimal end-to-end slice works:
+> **Status: early development (P4 of 10 done).** A minimal end-to-end slice works:
 > task → worktree → sub-agent → gate → merge → scorecard, and Claude Code hooks can be
 > installed and removed without a trace. See the [roadmap](docs/roadmap.md).
 
@@ -41,6 +41,8 @@ node <kit>/bin/asdk.mjs wt new DEMO-001 --slug due-date
 node <kit>/bin/asdk.mjs project add demo-api ~/work/demo-api
 node <kit>/bin/asdk.mjs hooks install     # edits ~/.claude/settings.json, after a backup
 node <kit>/bin/asdk.mjs health            # checks the setup and times one hook call
+node <kit>/bin/asdk.mjs usage --task DEMO-001   # tokens by model and agent type
+node <kit>/bin/asdk.mjs quota status      # plan and the latest quota snapshot
 node <kit>/bin/asdk.mjs disable           # pause; enable resumes
 node <kit>/bin/asdk.mjs hooks uninstall   # gives back the original bytes
 ```
@@ -52,7 +54,7 @@ file contents or paths. Data stays in `~/.agentic-metrics/`.
 
 | Module | Purpose | Phase |
 |---|---|---|
-| [`core/`](core/) | Contracts shared by every module (task, task brief, agent report, gate summary, event) and a dependency-free validator | P0 ✅ |
+| [`core/`](core/) | Contracts shared by every module (task, task brief, agent report, gate summary, event, usage) and a dependency-free validator | P0 ✅ |
 | [`collector/`](collector/) | Records each task from start to acceptance: hook events, task lifecycle, token usage, reports | P1–P5 |
 | [`governance/`](governance/) | Agent instruction templates, permission examples, risk-based gates (G1/G2/G3) | P6 |
 | [`orchestration/`](orchestration/) | Planner workflow, dispatch to sub-agents by model tier, worktree pool for parallel tasks | P1, P7 |

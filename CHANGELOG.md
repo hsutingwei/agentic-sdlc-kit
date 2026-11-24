@@ -20,6 +20,19 @@ until 1.0 the command line and file formats may still change.
 - `push_check.block` makes the pre-push hook refuse a commit without a passing
   gate run.
 
+### Profiles, verification and rules (P6b)
+
+- Plan profiles `ultra`, `max`, `pro`: model, effort and isolation per role and
+  risk, verifiers per risk; `asdk profile show|apply`; `task start --profile`
+  and a `profile` column; merge policy review counts can follow the profile
+  ([ADR-0008](docs/adr/0008-plan-profiles.md)).
+- `asdk health` warns about environment variables that override profiles.
+- `asdk verify run`: start the application per scenario, drive it over HTTP,
+  keep the evidence, stop everything it started; `--record` adds a `ui` check
+  with the evidence hash. A verify skill for agents; the demo uses both.
+- Rules from mistakes: `.asdk/rules.json`, `asdk rules test|check`, the `rules`
+  gate step, `asdk-allow` exceptions; a demo rule and one for the kit itself.
+
 ## 0.1.0 – 2026-11-24
 
 The first version that can be shown end to end: phases P0 to P5 of the

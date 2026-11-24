@@ -57,8 +57,11 @@ commit you stopped at, the files you changed, one entry per acceptance criterion
 - demo-api is a fictional todo-list REST API on `node:http`, with no dependencies.
 - Start it with `npm start` (port 3000, or `PORT`). Unit tests of the store are in
   `test/unit/`, HTTP tests in `test/integration/`; `npm test` runs both.
-- Gates: `asdk gate run G1` (syntax, unit), `G2` (adds integration), `G3`
-  (clean tree, then G2's steps; run before pushing).
+- Gates: `asdk gate run G1` (syntax, rules, unit), `G2` (adds the agent
+  configuration checks and integration tests), `G3` (clean tree, then G2's
+  steps; run before pushing).
+- Verify on the running API with `.claude/skills/verify/SKILL.md`; scenarios
+  live in `test/scenarios/`. `.asdk/rules.json` lists mistakes not to repeat.
 - `src/server.mjs` is the public HTTP contract (medium risk); package files are
   medium; `.asdk/`, `.claude/`, `AGENTS.md` and `CLAUDE.md` are high.
 - Task briefs are in `briefs/`; the implementer sub-agent is `.claude/agents/implementer.md`.

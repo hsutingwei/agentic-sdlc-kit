@@ -46,6 +46,11 @@ asdk task start DEMO-001 --type feature --risk low --estimate 6 --title "Add due
 `--estimate` is your estimate of the effort **without** AI. It is recorded once
 and never edited; it is the baseline of the efficiency score.
 
+If you have recorded your plan (`asdk quota plan-change max-5x`), the task also
+records the matching profile; `--profile ultra|max|pro` chooses one. To give the
+implementer the profile's model and effort, run `asdk profile apply` in the demo
+repository and commit the change before step 3 ([ADR-0008](adr/0008-plan-profiles.md)).
+
 Time yourself whenever you work on the task; your hours are the other half of
 the score:
 
@@ -81,8 +86,10 @@ Ask:
 > Use the implementer sub-agent to implement briefs/DEMO-001.json.
 
 The implementer (`.claude/agents/implementer.md`) works from the brief only,
-changes `src/**` and `test/**`, runs the tests, commits, and replies with an
-agent report. Every hook event is recorded as metadata: tool names, sizes,
+changes `src/**` and `test/**`, runs the tests, verifies on the running API with
+the verify skill (one scenario per acceptance criterion, `asdk verify run`),
+commits, records the verification on its commit (`asdk verify run --record`),
+and replies with an agent report that names the evidence. Every hook event is recorded as metadata: tool names, sizes,
 sub-agent ids. Prompt text, file contents and answers are not stored.
 
 ## 6. Gate, review and merge

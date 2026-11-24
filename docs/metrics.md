@@ -9,6 +9,7 @@ An example built from fictional data is in
 
 | Column | Definition |
 |---|---|
+| `profile` | Plan profile the task was started with (`task start --profile`, or taken from the current plan). Empty when no plan was known. |
 | `lead_time_h` | `task start` to `task end`, wall-clock hours. Empty while the task is open. |
 | `ai_h` | Hours an agent was working on the task: turns (prompt to `Stop`) and sub-agents (`SubagentStart` to `SubagentStop`) of the sessions that recorded events of the task, merged so overlapping time counts once, and clipped to the task window. A turn crossing the window's edge is cut, not dropped. |
 | `human_h` | Hours a person recorded with `asdk human start/stop`, plus adjustments. One timer runs at a time. |
@@ -68,6 +69,8 @@ cannot be raised by leaving failures out. Deferred and open tasks are not scored
   executor, gate, commit. Checks are `build`, `unit`, `integration`, `ui`,
   `review` and `acceptance`; executors are `script`, `agent` and `human`. A review
   is always bound to a commit, and acceptance is always recorded by a human.
+  `evidence` is the SHA-256 of the evidence file of an `asdk verify run --record`;
+  the file itself stays in `~/.agentic-metrics/evidence/`.
 - **`usage.csv`** – tokens per task and model, plus `(outside tasks)` per model.
 - **Task coverage** (`summary.md`) – share of output tokens of all harvested
   sessions that fell inside a task window. Output tokens are used because they

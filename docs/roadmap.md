@@ -10,14 +10,16 @@ ends with `npm test` actually run and the result reported.
 | P2 | Collector: project registry (worktree-aware, `session set-project`, `project remove`), hook recording incl. `SubagentStart`/`SubagentStop`/`PostToolUseFailure`, `hooks install/uninstall` (byte-exact, [ADR-0003](adr/0003-byte-preserving-settings-edits.md)), `enable/disable`, `health` | done |
 | P3 | Collector: task lifecycle CLI (`task update/escalate`, `human start/stop/adjust/status`), lock files ([ADR-0004](adr/0004-lock-files.md)), multi-process contention tests | done |
 | P4 | Collector: token usage harvest, quota snapshots, plan changes | |
-| P5 | Collector: reports, push check, efficiency scorecard, fictional sample data | |
-| P6 | Governance templates and gates applied to `examples/demo-api`, role and model-tier profiles | |
-| P7 | Orchestration: planner workflow, report verification, isolation levels, worktree pool, dispatch guard, `budget status`, a local job queue for gates and installs | |
+| P5 | Collector: reports, push check, efficiency scorecard, fictional sample data; a real Claude Code run of the demo; merge to `main` as v0.1 | |
+| P6 | Governance templates and gates applied to `examples/demo-api`; profiles that pick model, reasoning effort, isolation and verifier count from plan × risk × role; a project verification skill (launch, health check, drive, evidence, clean-up); repeated mistakes turned into lint rules and tests | |
+| E1 | Experiment while quota is plentiful: 10–20 small demo tasks run with the `ultra`, `max` and `pro` profiles (optionally an external skill pack), comparing human review minutes, first-pass rate, escaped defects and tokens per task; results with sample size and limits in `docs/experiments.md` | |
+| P7 | Orchestration, scoped by E1: planner workflow with one playbook per task type (skipped steps carry a reason), report verification, isolation levels, worktree pool, dispatch guard, `budget status` with tier downgrade on low quota, a local job queue for gates and installs | |
 | P8 | Skill regression and reviewer cases | |
 | P9 | Documentation, ADRs, README, pre-publication checks (full-history scan, action pinning) | |
 
-**Demo-ready line:** after P1 and P5 the kit can be shown end to end; later
-phases deepen it.
+**Demo-ready line:** after P1 and P5 the kit can be shown end to end (v0.1);
+later phases deepen it. From P6 on, the kit records its own development
+(dogfooding); only aggregated numbers are published.
 
 ## Priorities toward the 3× goal
 
@@ -38,6 +40,42 @@ Expected bottlenecks, most important first (to be confirmed by P5 data):
    memory and are checked against current load before each job starts; running
    jobs are never preempted (P7, using the P3 locks). Agent concurrency is set by
    quota and the WIP limit, not by CPU: the models run remotely.
+
+## Plans and profiles
+
+The kit is developed on a top-tier plan but must serve ordinary ones (Pro, Max).
+Profiles therefore take the plan as an input. Starting points, to be checked by E1:
+
+| Profile | Implementation | Tests and review | Notes |
+|---|---|---|---|
+| `ultra` | Opus, `xhigh` for design and high risk, `high` otherwise | lighter model, sterile | several independent verifiers on medium risk and above |
+| `max` | Opus `high` | lighter model | one verifier, more for high risk |
+| `pro` | Sonnet `high`; Opus only for high risk | lightest model | one verifier, fewer parallel tasks |
+
+Token counts per task do not depend on the plan, so E1 on a large plan can
+estimate the cost on smaller ones; `asdk quota plan-change` (P4) lets the
+reports compare real numbers before and after a plan change.
+
+## Ideas borrowed from other workflows
+
+Reviewed: pstack (Lauren Tan, a Cursor plugin; read through third-party
+write-ups only). The kit stays neutral about skill packs: ideas are reimplemented
+here from scratch, and whether a pack helps is measured, not assumed (E1).
+
+- Evidence over "the build passed": verify on the real interface and attach the
+  output (P6 verification skill).
+- A verdict counts only for the exact commit that merges (already the merge rule).
+- A mistake that repeats becomes structure: types or a lint rule whose message
+  names the fix, then a test, and only last an agent rule; each new check is
+  proven against the real past mistake (P6, P8).
+- One playbook per task type, copied into the task list; skipped steps keep a
+  reason (P7).
+- Parallel workers report PASS, ISSUES or BLOCKED (P7).
+- Review findings are sorted (act on, consider, noted, dismissed) and never
+  applied automatically (P8).
+- Verifier count follows risk: verification is token-intensive (P6, P7).
+- Not adopted: automatic merges to `main`. Only `dev` may receive merges
+  without a human, and only for low-risk tasks that passed independent checks.
 
 ## Decisions so far
 

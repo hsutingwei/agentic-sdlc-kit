@@ -3,7 +3,9 @@
   "rules": [
     {
       "id": "tests-use-sandbox-home",
-      "files": ["**/test/**/*.mjs"],
+      "files": [
+        "**/test/**/*.mjs"
+      ],
       "pattern": "\\bhomedir\\(|['\"`]~[\\\\/]",
       "message": "Tests must not read or write the real home directory: use createSandbox() from test/helpers/sandbox.mjs and its sb.home, sb.env and sb.join().",
       "origin": "Hard rule 3 of this project (tests only use temporary directories and never touch the user's real settings); made a rule before any test broke it",
@@ -15,6 +17,25 @@
         "good": [
           "const settings = path.join(sb.home, '.claude', 'settings.json');",
           "test('user scope follows CLAUDE_CONFIG_DIR, then ~/.claude', (t) => {"
+        ]
+      }
+    },
+    {
+      "id": "no-invisible-bom",
+      "files": [
+        "**/*.mjs"
+      ],
+      "pattern": "\uFEFF",
+      "message": "Write the byte order mark as the escape \\uFEFF: the character itself is invisible in a diff and in most editors, so nobody can see that it is there or check it.",
+      "origin": "Found in 16 places in 15 source files written from P0 to E1a (registry, report, gates, profiles, verify, tests): the escape was meant, the invisible character was stored",
+      "examples": {
+        "bad": [
+          "return `\uFEFF${lines.join(',')}`;",
+          "text.replace(/^\uFEFF/, '')"
+        ],
+        "good": [
+          "return `\\uFEFF${lines.join(',')}`;",
+          "text.replace(/^\\uFEFF/, '')"
         ]
       }
     }

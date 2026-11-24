@@ -283,7 +283,7 @@ export function toMarkdown(report, { generatedAt, invalidLines = 0, masks = [] }
   out.push('| Task | Project | Outcome | Lead (h) | AI (h) | Human (h) | Waiting on human (h) | Estimate (h) | Efficiency | Checks | First pass | Escalations | Output tokens | Data quality |');
   out.push('|---|---|---|---|---|---|---|---|---|---|---|---|---|---|');
   for (const r of rows) {
-    const eff = r.efficiency === null || r.efficiency === undefined ? null : r.quality === 1 ? `${r.efficiency}` : `${r.efficiency_raw} × ${r.quality} = ${r.efficiency}`;
+    const eff = r.efficiency === null || r.efficiency === undefined ? null : r.quality === 1 || r.outcome !== 'accepted' ? `${r.efficiency}` : `${r.efficiency_raw} × ${r.quality} = ${r.efficiency}`;
     out.push(
       `| ${md(r.task_id)} | ${md(r.project_id)} | ${md(r.outcome ?? r.status)} | ${md(r.lead_time_h)} | ${md(r.ai_h)} | ${md(r.human_h)} | ${md(r.waiting_human_h || null)} | ` +
         `${md(r.estimate_h)} | ${md(eff)} | ${r.verifications} | ${md(r.first_pass === null ? null : r.first_pass ? 'yes' : 'no')} | ${r.escalations} | ${fmt(r.output_tokens)} | ${r.data_quality} |`,

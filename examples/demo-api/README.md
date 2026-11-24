@@ -21,6 +21,8 @@ Unit tests of the store are in `test/unit/`; tests that go through HTTP are in
 
 - `briefs/DEMO-001.json` – the task brief for the first demo task (due dates).
 - `.claude/agents/implementer.md` – the sub-agent that implements a brief.
+- `AGENTS.md`, `CLAUDE.md`, `.claude/settings.json` – the kit's governance templates, with project notes.
+- `.asdk/gates.json`, `.asdk/risk-paths.json` – gates G1–G3 and the minimum risk by changed path.
 
 `tools/demo-setup.mjs` in the kit copies this directory into a separate git
 repository, so the demo never changes the kit's own repository.

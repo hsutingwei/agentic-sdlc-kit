@@ -35,3 +35,13 @@ test('the implementer agent is read-limited to the tools it needs', () => {
   assert.match(front, /^tools: Read, Edit, Write, Grep, Glob, Bash$/m);
   assert.match(front, /^model: \S+$/m);
 });
+
+test('demo-api carries the governance templates, with only the project notes filled in', () => {
+  const TEMPLATES = path.join(DEMO, '..', '..', 'governance', 'templates');
+  const read = (...p) => readFileSync(path.join(...p), 'utf8').replace(/\r\n/g, '\n');
+  const shared = (text) => text.slice(0, text.indexOf('## Project notes'));
+  assert.equal(shared(read(DEMO, 'AGENTS.md')), shared(read(TEMPLATES, 'AGENTS.md')));
+  assert.doesNotMatch(read(DEMO, 'AGENTS.md'), /<!-- Replace with/);
+  assert.equal(read(DEMO, 'CLAUDE.md'), '@AGENTS.md\n');
+  assert.deepEqual(JSON.parse(read(DEMO, '.claude', 'settings.json')), JSON.parse(read(TEMPLATES, 'settings.json')));
+});

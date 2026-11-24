@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "task_id": "DEMO-103",
+  "project_id": "demo-api",
+  "title": "Tag todo items",
+  "goal": "Items can carry a few short tags, such as \"home\" or \"work\".",
+  "type": "feature",
+  "risk": "low",
+  "assignment": { "role": "implementer", "model_tier": "standard", "isolation": "fresh" },
+  "scope": {
+    "allowed_paths": ["src/**", "test/**"],
+    "forbidden_paths": [".asdk/**", ".claude/**", "briefs/**", "AGENTS.md", "CLAUDE.md"]
+  },
+  "acceptance_criteria": [
+    { "id": "AC1", "text": "Items have \"tags\": an array, [] by default; POST /todos and PATCH /todos/:id accept tags." },
+    { "id": "AC2", "text": "Each tag is a string, trimmed, 1 to 30 characters after trimming; at most 5 tags; repeated tags are kept once, in first-seen order." },
+    { "id": "AC3", "text": "Anything else (not an array, a non-string, an empty tag, a sixth distinct tag, a tag over 30 characters) is refused with 400 and changes nothing." }
+  ],
+  "base_branch": "dev",
+  "estimate_hours": 2,
+  "context": {
+    "read_first": ["src/todos.mjs", "test/unit/todos.test.mjs"],
+    "notes": "Keep node:http only; no dependencies. Count characters, not bytes. Add tests for every acceptance criterion."
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "task_id": "DEMO-107",
+  "project_id": "demo-api",
+  "title": "Trim titles changed with PATCH",
+  "goal": "A title is stored the same way however it was set.",
+  "type": "bugfix",
+  "risk": "low",
+  "assignment": { "role": "implementer", "model_tier": "standard", "isolation": "fresh" },
+  "scope": {
+    "allowed_paths": ["src/**", "test/**"],
+    "forbidden_paths": [".asdk/**", ".claude/**", "briefs/**", "AGENTS.md", "CLAUDE.md"]
+  },
+  "acceptance_criteria": [
+    { "id": "AC1", "text": "PATCH /todos/:id with a title stores it trimmed, as POST /todos already does (reported: \"  milk  \" kept its spaces)." },
+    { "id": "AC2", "text": "A test covers the reported case, so it cannot come back." }
+  ],
+  "base_branch": "dev",
+  "estimate_hours": 0.75,
+  "context": {
+    "read_first": ["src/todos.mjs", "test/unit/todos.test.mjs"],
+    "notes": "Find the cause; do not trim in the HTTP layer only."
+  }
+}

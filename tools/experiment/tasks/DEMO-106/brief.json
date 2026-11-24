@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "task_id": "DEMO-106",
+  "project_id": "demo-api",
+  "title": "Turn the store into a class",
+  "goal": "The store becomes a class with private state, so it can be extended and inspected in tests, without changing what it does.",
+  "type": "refactor",
+  "risk": "low",
+  "assignment": { "role": "implementer", "model_tier": "standard", "isolation": "fresh" },
+  "scope": {
+    "allowed_paths": ["src/**", "test/**"],
+    "forbidden_paths": [".asdk/**", ".claude/**", "briefs/**", "AGENTS.md", "CLAUDE.md"]
+  },
+  "acceptance_criteria": [
+    { "id": "AC1", "text": "src/todos.mjs exports a class TodoStore with the methods list, get, add, update and remove; its items and id counter are private fields." },
+    { "id": "AC2", "text": "createStore() still exists and returns a new TodoStore; every existing behaviour is unchanged, including ids not used up by refused items and callers not being able to change stored items." }
+  ],
+  "base_branch": "dev",
+  "estimate_hours": 2.5,
+  "context": {
+    "read_first": ["src/todos.mjs", "src/server.mjs", "test/unit/todos.test.mjs"],
+    "notes": "No behaviour change: the existing tests must pass unchanged. Use #private fields."
+  }
+}

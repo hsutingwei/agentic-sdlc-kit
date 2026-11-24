@@ -18,6 +18,9 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 // examples/ holds sample projects that run their own tests through the gates.
 const SKIP_DIRS = new Set(['.git', 'node_modules', 'fixtures', 'examples', 'coverage']);
+// The E1 task catalogue holds hidden tests and reference solutions as data; its own
+// test (test/experiment-tasks.test.mjs) runs them inside throw-away demo repositories.
+const SKIP_PATHS = new Set([path.join(ROOT, 'tools', 'experiment', 'tasks')]);
 const TEST_FILE = /\.test\.mjs$/;
 
 function findTestFiles(dir, found = []) {
@@ -27,7 +30,7 @@ function findTestFiles(dir, found = []) {
     if (entry.isSymbolicLink()) continue;
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      if (!SKIP_DIRS.has(entry.name)) findTestFiles(full, found);
+      if (!SKIP_DIRS.has(entry.name) && !SKIP_PATHS.has(full)) findTestFiles(full, found);
     } else if (entry.isFile() && TEST_FILE.test(entry.name)) {
       found.push(full);
     }

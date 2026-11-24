@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "task_id": "DEMO-108",
+  "project_id": "demo-api",
+  "title": "Deleting an unknown item must answer 404",
+  "goal": "Clients can tell a successful delete from a delete of something that was never there.",
+  "type": "bugfix",
+  "risk": "medium",
+  "assignment": { "role": "implementer", "model_tier": "standard", "isolation": "fresh" },
+  "scope": {
+    "allowed_paths": ["src/**", "test/**"],
+    "forbidden_paths": [".asdk/**", ".claude/**", "briefs/**", "AGENTS.md", "CLAUDE.md"]
+  },
+  "acceptance_criteria": [
+    { "id": "AC1", "text": "DELETE /todos/:id of an id that does not exist (or was already deleted) answers 404 (reported: it answers 204)." },
+    { "id": "AC2", "text": "Deleting an existing item still answers 204; a test covers both cases." }
+  ],
+  "base_branch": "dev",
+  "estimate_hours": 0.75,
+  "context": {
+    "read_first": ["src/server.mjs", "src/todos.mjs", "test/integration/server.test.mjs"],
+    "notes": "Find the cause and add a test that fails without the fix."
+  }
+}

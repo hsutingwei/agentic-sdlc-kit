@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "plans": {
+    "pro": "pro",
+    "max": "max",
+    "max-5x": "max",
+    "max-20x": "max",
+    "ultra": "ultra"
+  },
+  "profiles": {
+    "ultra": {
+      "description": "Top-tier plan: the strongest model where it pays, several independent verifiers.",
+      "tiers": { "light": "haiku", "standard": "sonnet", "strong": "opus" },
+      "roles": {
+        "planner": { "tier": "strong", "effort": "xhigh", "isolation": "fresh" },
+        "implementer": { "tier": "strong", "effort": "high", "isolation": "fresh", "by_risk": { "high": { "effort": "xhigh" }, "critical": { "effort": "xhigh" } } },
+        "reviewer": { "tier": "standard", "effort": "high", "isolation": "sterile" },
+        "tester": { "tier": "standard", "effort": "medium", "isolation": "sterile" }
+      },
+      "verifiers": { "low": 0, "medium": 2, "high": 3, "critical": 3 }
+    },
+    "max": {
+      "description": "Max plan: Opus for planning and implementation, lighter models for checks.",
+      "tiers": { "light": "haiku", "standard": "sonnet", "strong": "opus" },
+      "roles": {
+        "planner": { "tier": "strong", "effort": "high", "isolation": "fresh" },
+        "implementer": { "tier": "strong", "effort": "high", "isolation": "fresh" },
+        "reviewer": { "tier": "standard", "effort": "high", "isolation": "sterile" },
+        "tester": { "tier": "light", "effort": "high", "isolation": "sterile" }
+      },
+      "verifiers": { "low": 0, "medium": 1, "high": 2, "critical": 2 }
+    },
+    "pro": {
+      "description": "Pro plan: Sonnet by default, Opus only for high risk, one verifier.",
+      "tiers": { "light": "haiku", "standard": "sonnet", "strong": "opus" },
+      "roles": {
+        "planner": { "tier": "standard", "effort": "high", "isolation": "fresh", "by_risk": { "high": { "tier": "strong" }, "critical": { "tier": "strong" } } },
+        "implementer": { "tier": "standard", "effort": "high", "isolation": "fresh", "by_risk": { "high": { "tier": "strong" }, "critical": { "tier": "strong" } } },
+        "reviewer": { "tier": "standard", "effort": "medium", "isolation": "sterile" },
+        "tester": { "tier": "light", "effort": "medium", "isolation": "sterile" }
+      },
+      "verifiers": { "low": 0, "medium": 1, "high": 1, "critical": 1 }
+    }
+  }
+}

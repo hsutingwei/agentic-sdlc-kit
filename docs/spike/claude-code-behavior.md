@@ -131,6 +131,32 @@ task did not involve them.
 instructions. Testers and reviewers whose results feed a score must run
 `sterile` (finding 4).
 
+### 10. Follow-up run (2026-11-24): failures, shells and CJK paths
+
+One more headless run (`--model haiku`, about USD 0.003) from a project whose
+path and hook script path both contain CJK characters and spaces. The hook
+command was `"<absolute node.exe>" "<absolute script>" <event>`, forward
+slashes, quoted.
+
+- Every hook fired. On Windows the command ran in **Git Bash** (`SHELL` was
+  `bash.exe`, `MSYSTEM` `MINGW64`). The documentation says PowerShell is used
+  when Git Bash is not installed and a per-hook `shell` field exists; neither
+  was tested.
+- Reading a missing file fired **`PostToolUseFailure`** instead of
+  `PostToolUse`, with `tool_name`, `tool_input`, `tool_use_id`, **`error`**
+  (the message, which names the path), `is_interrupt` and `duration_ms`.
+- Tool and stop events also carried `effort` (`{ "level": "medium" }`); `Stop`
+  carried `background_tasks` and `session_crons` arrays.
+- In a first attempt the hook script had a syntax error: the hook exited
+  non-zero, Claude Code printed the error and the session still finished
+  normally.
+- Not tested: whether `CLAUDE_CONFIG_DIR` moves the user settings file. The
+  settings documentation says settings are stored there; testing it needs a
+  logged-in config directory, so the kit relies on the documentation.
+
+**Kit:** the hook also listens to `PostToolUseFailure` and keeps only the size
+of `error`; it records `effort.level`. Hook commands use an absolute node path.
+
 ## Open questions
 
 - Behaviour when a child run inherits the host session's environment (finding 1).

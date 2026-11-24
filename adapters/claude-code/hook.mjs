@@ -17,7 +17,7 @@ const EVENT_NAME = /^[A-Za-z][A-Za-z0-9_.:-]{0,63}$/;
 const ID = /^[A-Za-z0-9._-]{1,128}$/;
 
 // Copied as they are when they are short scalars.
-const SCALAR_FIELDS = ['tool_name', 'tool_use_id', 'prompt_id', 'permission_mode', 'source', 'reason', 'duration_ms', 'stop_hook_active'];
+const SCALAR_FIELDS = ['tool_name', 'tool_use_id', 'prompt_id', 'permission_mode', 'source', 'reason', 'duration_ms', 'stop_hook_active', 'is_interrupt'];
 
 // Reduced to a size: these carry content.
 const SIZE_FIELDS = {
@@ -25,6 +25,7 @@ const SIZE_FIELDS = {
   tool_input: 'tool_input_bytes',
   tool_response: 'tool_response_bytes',
   last_assistant_message: 'last_message_chars',
+  error: 'error_chars', // PostToolUseFailure: the message can quote paths or file content
 };
 
 const sizeOf = (value) => (typeof value === 'string' ? [...value].length : Buffer.byteLength(JSON.stringify(value) ?? '', 'utf8'));
@@ -44,6 +45,9 @@ export function payloadToEvent(payload, { env = process.env, cwd = process.cwd()
   for (const [key, as] of Object.entries(SIZE_FIELDS)) {
     if (payload[key] !== undefined && payload[key] !== null) data[as] = sizeOf(payload[key]);
   }
+  // Reasoning effort arrives as { level } on tool and stop events.
+  const effort = payload.effort?.level;
+  if (typeof effort === 'string' && effort.length <= 32) data.effort = effort;
   if (payload.tool_input && typeof payload.tool_input === 'object' && typeof payload.tool_input.file_path === 'string') {
     data.file_count = 1; // the path itself is not recorded
   }

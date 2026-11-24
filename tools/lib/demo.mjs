@@ -13,7 +13,7 @@ const KIT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 export const DEMO_TEMPLATE = path.join(KIT_ROOT, 'examples', 'demo-api');
 export const ASDK_BIN = path.join(KIT_ROOT, 'bin', 'asdk.mjs');
 
-export const HOOK_EVENTS = ['SessionStart', 'UserPromptSubmit', 'PreToolUse', 'PostToolUse', 'Stop', 'SubagentStart', 'SubagentStop', 'SessionEnd'];
+export const HOOK_EVENTS = ['SessionStart', 'UserPromptSubmit', 'PreToolUse', 'PostToolUse', 'PostToolUseFailure', 'Stop', 'SubagentStart', 'SubagentStop', 'SessionEnd'];
 export const LOCAL_SETTINGS = '.claude/settings.local.json';
 
 // The demo repository is fictional, so its commits use a fictional identity.

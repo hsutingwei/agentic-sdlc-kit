@@ -64,6 +64,33 @@ test('sub-agent and prompt fields', (t) => {
   assert.equal(prompt.data.prompt_id, 'p-1');
 });
 
+test('a failed tool call keeps the error size, not the error text', (t) => {
+  const { sb, wt } = setup(t, 'hook-failure');
+  // Shape seen from Claude Code 2.1.330 when Read hit a missing file (docs/spike, finding 10).
+  const e = payloadToEvent(
+    {
+      session_id: 's',
+      cwd: wt,
+      hook_event_name: 'PostToolUseFailure',
+      permission_mode: 'default',
+      effort: { level: 'medium' },
+      tool_name: 'Read',
+      tool_input: { file_path: path.join(wt, 'missing.txt') },
+      tool_use_id: 'toolu_02',
+      error: `File does not exist: ${path.join(wt, SECRET)}`,
+      is_interrupt: false,
+      duration_ms: 8,
+    },
+    { env: sb.env },
+  );
+  assert.doesNotMatch(JSON.stringify(e), new RegExp(`${SECRET}|missing\\.txt`));
+  assert.equal(e.event, 'PostToolUseFailure');
+  assert.equal(e.data.tool_name, 'Read');
+  assert.equal(e.data.is_interrupt, false);
+  assert.equal(e.data.effort, 'medium');
+  assert.ok(e.data.error_chars > SECRET.length);
+});
+
 test('unknown or unsafe values are dropped', (t) => {
   const { sb } = setup(t, 'hook-unsafe');
   assert.equal(payloadToEvent({ cwd: sb.home }, { env: sb.env }), null);

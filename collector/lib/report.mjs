@@ -6,6 +6,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { dataPath } from './paths.mjs';
 import { readEvents } from './store.mjs';
+import { deriveHumanTime } from './human-time.mjs';
 import { deriveTasks } from './tasks.mjs';
 
 export const COLUMNS = [
@@ -36,7 +37,13 @@ export const FLAG_HELP = {
   open_task: 'the task has not ended, so lead time and outcome are unknown',
   no_estimate: 'no estimate without AI was recorded at start; efficiency cannot be computed',
   no_verification: 'no check was recorded for the task',
-  no_human_time: 'human time is not recorded yet (task human start/stop arrives in a later phase)',
+  no_human_time: 'no human time was recorded for the task (asdk human start/stop/adjust); efficiency cannot be computed',
+  open_human_timer: 'a human timer is still running on the task; its time is not counted yet',
+  long_human_session: 'a timed period was longer than eight hours; check that the timer was not left running',
+  human_timer_auto_stopped: 'a timer was still running when the task ended and was stopped then',
+  unpaired_human_stop: 'a timer stop had no matching start',
+  overlapping_human_timer: 'a timer started while another was running',
+  clock_went_back: 'the clock went back between a timer start and stop; that period counts as zero',
   duplicate_task_start: 'the task was started more than once; the first start is used',
   duplicate_task_end: 'the task was ended more than once; the first end is used',
   no_task_start: 'events reference this task but it was never started',
@@ -46,13 +53,17 @@ const hours = (from, to) => Math.round(((Date.parse(to) - Date.parse(from)) / 3_
 
 export function buildRows(events) {
   const { tasks, orphans } = deriveTasks(events);
+  const human = deriveHumanTime(events);
   const rows = [];
   for (const t of tasks.values()) {
     const flags = new Set(t.flags);
     if (t.status !== 'ended') flags.add('open_task');
     if (t.estimate_hours === undefined) flags.add('no_estimate');
     if (t.verifications.length === 0) flags.add('no_verification');
-    flags.add('no_human_time');
+    const h = human.tasks.get(t.task_id);
+    for (const f of h?.flags ?? []) flags.add(f);
+    if (!h || (h.periods.length === 0 && h.adjustments.length === 0)) flags.add('no_human_time');
+    if (human.open?.task_id === t.task_id) flags.add('open_human_timer');
     rows.push({
       task_id: t.task_id,
       project_id: t.project_id,
@@ -66,8 +77,8 @@ export function buildRows(events) {
       ended_at: t.ended_at ?? null,
       lead_time_h: t.ended_at ? hours(t.started_at, t.ended_at) : null,
       estimate_h: t.estimate_hours ?? null,
-      human_h: null,
-      efficiency: null,
+      human_h: h ? Math.round((h.minutes / 60) * 100) / 100 : null,
+      efficiency: null, // P5: estimate without AI / human hours, with quality discounts
       verifications: t.verifications.length,
       first_pass: t.verifications.length ? t.verifications[0].result === 'pass' : null,
       gate_runs: t.gate_runs.length,

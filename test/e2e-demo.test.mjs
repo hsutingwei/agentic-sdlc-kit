@@ -67,8 +67,10 @@ test('DEMO-001 end to end', (t) => {
   assert.match(readFileSync(path.join(demo, 'src', 'todos.mjs'), 'utf8'), /due_date/);
   assert.match(git(sb, demo, 'log', '-1', '--format=%s'), /^Merge feat\/DEMO-001-due-date \(DEMO-001\)/);
 
-  // 7. A human accepts the result.
+  // 7. A human accepts the result, timing the check.
+  step('human start', asdk(['human', 'start', 'DEMO-001', '--activity', 'acceptance']));
   step('acceptance', asdk(['task', 'verify', 'DEMO-001', '--check', 'acceptance', '--result', 'pass', '--executor', 'human']));
+  step('human stop', asdk(['human', 'stop', 'DEMO-001']));
   step('task end', asdk(['task', 'end', 'DEMO-001', '--outcome', 'accepted', '--completed-by', 'ai']));
 
   // 8. The scorecard row.
@@ -85,8 +87,9 @@ test('DEMO-001 end to end', (t) => {
   assert.equal(row.gate_runs, 2);
   assert.equal(row.sessions, 1);
   assert.equal(row.subagents, 1);
-  assert.equal(row.data_quality, 'Partial');
-  assert.deepEqual(row.flags, ['no_human_time']);
+  assert.equal(typeof row.human_h, 'number');
+  assert.equal(row.data_quality, 'Complete');
+  assert.deepEqual(row.flags, []);
 
   // Nothing the agent typed or read was stored.
   const all = JSON.stringify(readEvents(sb.env).events);

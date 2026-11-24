@@ -15,6 +15,9 @@ const EVENTS = [
   ev('2026-11-02T02:00:00.000Z', 'task.verify', 'DEMO-001', { source: 'gate', data: { check: 'unit', result: 'fail', executor: 'script' } }),
   ev('2026-11-02T02:30:00.000Z', 'gate.run', 'DEMO-001', { source: 'gate', data: { gate: 'G1', result: 'pass' } }),
   ev('2026-11-02T02:30:00.000Z', 'task.verify', 'DEMO-001', { source: 'gate', data: { check: 'unit', result: 'pass', executor: 'script' } }),
+  ev('2026-11-02T03:00:00.000Z', 'human.start', 'DEMO-001', { data: { activity: 'acceptance' } }),
+  ev('2026-11-02T03:20:00.000Z', 'human.stop', 'DEMO-001'),
+  ev('2026-11-02T03:25:00.000Z', 'human.adjust', 'DEMO-001', { data: { minutes: 10, activity: 'spec', reason: 'brief written before timing' } }),
   ev('2026-11-02T03:30:00.000Z', 'task.end', 'DEMO-001', { data: { outcome: 'accepted', completed_by: 'ai' } }),
   ev('2026-11-02T04:00:00.000Z', 'task.start', 'DEMO-002', { data: { type: 'docs', risk: 'low' } }),
   ev('2026-11-02T04:10:00.000Z', 'task.verify', 'DEMO-009', { data: { check: 'unit', result: 'pass', executor: 'script' } }),
@@ -25,15 +28,15 @@ test('rows carry measured numbers, empty unmeasured ones, and the reasons', () =
   assert.equal(done.task_id, 'DEMO-001');
   assert.equal(done.lead_time_h, 2.5);
   assert.equal(done.estimate_h, 6);
-  assert.equal(done.human_h, null);
+  assert.equal(done.human_h, 0.5);
   assert.equal(done.efficiency, null);
   assert.equal(done.verifications, 2);
   assert.equal(done.first_pass, false);
   assert.equal(done.gate_runs, 2);
   assert.equal(done.sessions, 1);
   assert.equal(done.subagents, 1);
-  assert.equal(done.data_quality, 'Partial');
-  assert.deepEqual(done.flags, ['no_human_time']);
+  assert.equal(done.data_quality, 'Complete');
+  assert.deepEqual(done.flags, []);
 
   assert.deepEqual(open.flags, ['no_estimate', 'no_human_time', 'no_verification', 'open_task']);
   assert.equal(open.lead_time_h, null);
@@ -55,7 +58,7 @@ test('CSV has a BOM, a fixed header and escaped cells', () => {
 
 test('summary.md explains every flag it uses', () => {
   const text = toMarkdown(buildRows(EVENTS), { generatedAt: '2026-11-02T05:00:00.000Z', invalidLines: 2 });
-  assert.match(text, /\| DEMO-001 \| demo-api \| accepted \| 2\.5 \| 6 \| – \| – \| 2 \| no \| Partial \|/);
+  assert.match(text, /\| DEMO-001 \| demo-api \| accepted \| 2\.5 \| 6 \| 0\.5 \| – \| 2 \| no \| Complete \|/);
   for (const flag of ['no_human_time', 'open_task', 'no_task_start']) assert.match(text, new RegExp(`\`${flag}\`: `));
   assert.match(text, /2 event line\(s\) could not be read/);
 });

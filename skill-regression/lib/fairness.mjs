@@ -15,7 +15,7 @@ const OWN_TESTS = ['test/unit/**/*.test.mjs', 'test/integration/**/*.test.mjs'];
 function nodeTest(repo, env, files) {
   const childEnv = { ...env };
   for (const k of Object.keys(childEnv)) if (k.toUpperCase() === 'NODE_TEST_CONTEXT') delete childEnv[k];
-  const r = spawnSync(process.execPath, ['--test', ...files], { cwd: repo, env: childEnv, encoding: 'utf8', timeout: 120000, windowsHide: true });
+  const r = spawnSync(process.execPath, ['--test', '--test-reporter=tap', ...files], { cwd: repo, env: childEnv, encoding: 'utf8', timeout: 120000, windowsHide: true });
   return { ok: r.status === 0, output: `${r.stdout ?? ''}${r.stderr ?? ''}` };
 }
 

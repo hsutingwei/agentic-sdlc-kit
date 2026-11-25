@@ -42,7 +42,8 @@ const FROM_SOURCE = /[\\/]src[\\/][^\s:]+\.m?js:\d+/;
 /**
  * Why a failing `node --test` run failed: an assertion, an error thrown by the code
  * under test (its stack runs through src/), or something else (the test could not
- * load, or it broke on its own). Only the first two show a defect.
+ * load, or it broke on its own). Only the first two show a defect. It reads TAP, so
+ * callers pass --test-reporter=tap: since Node 23 the default reporter is spec.
  */
 export function failureKind(output) {
   if (LOAD_ERROR.test(output)) return 'other';
@@ -75,7 +76,7 @@ export function proveFindings(env, { repo, sha, findings, timeoutS = 60 }) {
       writeFileSync(path.join(checkout, file), f.reproduction.test);
       const childEnv = sterileEnv(env);
       for (const k of Object.keys(childEnv)) if (k.toUpperCase() === 'NODE_TEST_CONTEXT') delete childEnv[k]; // else it reports to an outer runner
-      const r = spawnSync(process.execPath, ['--test', file], { cwd: checkout, env: childEnv, encoding: 'utf8', timeout: timeoutS * 1000, windowsHide: true });
+      const r = spawnSync(process.execPath, ['--test', '--test-reporter=tap', file], { cwd: checkout, env: childEnv, encoding: 'utf8', timeout: timeoutS * 1000, windowsHide: true });
       const output = `${r.stdout ?? ''}${r.stderr ?? ''}`;
       const tail = output.slice(-OUTPUT_TAIL);
       if (r.error?.code === 'ETIMEDOUT') proofs.push({ id: f.id, status: 'error', detail: `no result within ${timeoutS} s` });

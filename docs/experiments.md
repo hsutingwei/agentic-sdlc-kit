@@ -2,8 +2,8 @@
 
 ## E1: the same tasks with the ultra, max and pro profiles
 
-**Status:** prepared (E1a). Not run yet; results will be added here with their
-sample size and limits.
+**Status:** all 42 runs done (E1b); the reviews are under way. The agent side
+of the results is below; the review side follows when every run is reviewed (E1c).
 
 ### Question
 
@@ -89,7 +89,12 @@ node tools/experiment/e1.mjs review ~/asdk-e1
 node tools/experiment/e1.mjs status ~/asdk-e1
 node tools/experiment/e1.mjs run ~/asdk-e1          # the rest; stops by itself near the quota limit
 node tools/experiment/e1.mjs analyze ~/asdk-e1
+node tools/experiment/e1.mjs exclude-time ~/asdk-e1 <run> --reason <text>   # a review timer left running
 ```
+
+`exclude-time` leaves one finished review's minutes (and the kit's human hours and
+efficiency for that run) out of the analysis; the decision and its checks still
+count, and the reason stays in the experiment log.
 
 `run` uses the Claude Code subscription of whoever runs it; `--claude <path>`
 names the executable when it is not on PATH.
@@ -113,4 +118,43 @@ names the executable when it is not on PATH.
 
 ### Results
 
-Not run yet.
+#### Agent side (final)
+
+All 42 runs, November 2026, Claude Code 2.1.330 on Windows, kit commit 2837bf2
+(39 runs are marked dirty because an edit of this page was not yet committed; no
+code differed). Cost is the API list
+price the stream reports; the runs used a subscription, so they cost quota, not
+money. `max` has 18 runs because of the repeats (three tasks, two extra runs each).
+
+| Profile | Runs | First gate passed | Retries | List cost USD (median / total) | Agent time (median / total) | Turns (median) | Output tokens (median) | Models |
+|---|---|---|---|---|---|---|---|---|
+| ultra | 12 | 12 | 0 | 0.57 / 10.72 | 167 s / 52 min | 3 | 13,080 | opus + haiku in all 12 |
+| max | 18 | 18 | 0 | 0.54 / 10.63 | 151 s / 51 min | 3 | 13,036 | opus + haiku in all 18 |
+| pro | 12 | 12 | 0 | 0.20 / 3.44 | 78 s / 19 min | 2 | 8,854 | sonnet + haiku in 10, opus + haiku in the 2 high-risk runs |
+
+Median list cost by declared risk:
+
+| Profile | Low | Medium | High |
+|---|---|---|---|
+| ultra | 0.53 (5) | 0.48 (5) | 2.61 (2) |
+| max | 0.55 (7) | 0.45 (7) | 0.97 (4) |
+| pro | 0.19 (5) | 0.19 (5) | 0.73 (2) |
+
+The 42 runs moved the seven-day quota from 17 % to 20 %; no five-hour window was
+reported. Haiku appears in every run because Claude Code uses it for its own small
+tasks.
+
+What this already shows:
+
+- Every run passed its first gate, so in E1 the first-pass rate cannot tell the
+  profiles apart. The tasks were small enough for every profile; the comparison
+  rests on the review side.
+- `pro` costs about a third of `ultra` or `max` per task and takes half the time.
+  `ultra` and `max` cost about the same on low and medium tasks; on the two high
+  tasks `ultra` cost about 2.7 times as much as `max`.
+
+#### Review side
+
+Not yet: review minutes, accepted and rejected changes, escaped defects (hidden
+tests after the merge) and the efficiency score per profile, from
+`node tools/experiment/e1.mjs analyze`.

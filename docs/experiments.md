@@ -43,6 +43,12 @@ costs?
   it from the moment the change is shown. Accept records a review and the
   acceptance on the exact commit, merges if needed and runs the hidden tests;
   reject ends the task as rejected.
+- **Review notes:** before each review, Claude (the assistant that builds this
+  kit, not one of the profiles) writes a short note on the change: what changed,
+  each acceptance criterion, and anything worth a look. The note never names the
+  profile; the person decides. Decided after the first pilot review, so the review
+  minutes measure a person reading such a note and the change. That is close to
+  the reviewer agents planned for P8, and E1 has no unassisted baseline.
 - **Escaped defect:** an accepted change whose hidden tests fail after the merge.
 - **Merge policy in E1:** reviewer agents arrive in P8, so the person's review is
   the one review every risk level needs. The gate still follows the effective
@@ -100,6 +106,10 @@ names the executable when it is not on PATH.
 - One machine (Windows), one version of Claude Code, one period of time; models
   and quotas change.
 - The verifier count of the profiles is not tested (no reviewer agents yet).
+- Reviews are assisted by a note on each change (see Review notes), so the review
+  minutes are not those of a person reading the change alone.
+- The timer of the first pilot review (r03) ran overnight before the decision was
+  recorded; its review minutes are left out of the analysis.
 
 ### Results
 

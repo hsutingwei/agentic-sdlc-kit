@@ -8,7 +8,7 @@ import { createSandbox } from './helpers/sandbox.mjs';
 import { loadTasks } from '../collector/lib/tasks.mjs';
 import { buildPlan, runStates, savePlan } from '../tools/experiment/lib/plan.mjs';
 import { executeRun } from '../tools/experiment/lib/run.mjs';
-import { beginReview, completeReview, pendingReviews, reviewMaterial } from '../tools/experiment/lib/review.mjs';
+import { beginReview, completeReview, pendingReviews, reviewMaterial, screenDiff } from '../tools/experiment/lib/review.mjs';
 
 const FAKE = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures', 'fake-claude.mjs');
 const claude = { command: process.execPath, args: [FAKE] };
@@ -78,4 +78,19 @@ test('a rejected change ends the task as rejected; a twice-failed gate cannot be
   assert.throws(() => completeReview(dir, b, { decision: 'accept' }, opts), /cannot be accepted/);
   tick(1);
   assert.equal(completeReview(dir, b, { decision: 'reject' }, opts).decision, 'reject');
+});
+
+test('the screen shortens very long lines and caps the change; the diff file keeps all of it', () => {
+  const long = `+  "title": "${'x'.repeat(60000)}"`;
+  const diff = ['diff --git a/x b/x', '+short line', long, '+after'].join('\n');
+  const shown = screenDiff(diff).split('\n');
+  assert.deepEqual([shown[0], shown[1], shown[3]], ['diff --git a/x b/x', '+short line', '+after']);
+  assert.ok(shown[2].startsWith(long.slice(0, 200)));
+  assert.ok(shown[2].endsWith(` … (${long.length - 200} more characters, whole line in the diff file)`), shown[2].slice(200));
+  assert.equal(screenDiff(diff.replace(long, '+'.repeat(300))), diff.replace(long, '+'.repeat(300)), 'a line of 300 is kept');
+
+  const big = Array.from({ length: 2000 }, (_, i) => `+line ${i} ${'y'.repeat(150)}`).join('\n');
+  const capped = screenDiff(big);
+  assert.ok(capped.length < big.length);
+  assert.match(capped, /cut at 200000 characters; the whole change is in the diff file\)$/);
 });

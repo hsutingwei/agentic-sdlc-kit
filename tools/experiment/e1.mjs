@@ -122,7 +122,7 @@ export async function main(argv, { out = console.log, input = process.stdin, out
         const ready = await ask('Press Enter to show the change and start the timer, or q to stop: ', 'q');
         if (ready.trim().toLowerCase() === 'q') break;
         beginReview(dir, state, { baseEnv });
-        out(m.diff || '(nothing was committed)');
+        out(m.screen || '(nothing was committed)');
         let decision = null;
         while (!decision) {
           const a = (await ask(m.can_accept ? '[a]ccept, [r]eject, or [p]ause: ' : '[r]eject or [p]ause (the gate failed twice): ', 'p')).trim().toLowerCase();

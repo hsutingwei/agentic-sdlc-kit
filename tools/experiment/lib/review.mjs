@@ -18,7 +18,17 @@ import { loadTask, runHidden } from './catalogue.mjs';
 import { loadPlan, logRun, runDir, runStates, seeded } from './plan.mjs';
 import { runEnv, writeShims } from './run.mjs';
 
-const MAX_DIFF_CHARS = 200000;
+// What the terminal shows; the diff file always has the whole change.
+const MAX_SCREEN_CHARS = 200000;
+const MAX_LINE_CHARS = 300;
+const KEEP_LINE_CHARS = 200;
+
+/** The change as the terminal shows it: very long lines shortened, the whole capped. */
+export function screenDiff(diff) {
+  const lines = diff.split('\n').map((line) => (line.length > MAX_LINE_CHARS ? `${line.slice(0, KEEP_LINE_CHARS)} … (${line.length - KEEP_LINE_CHARS} more characters, whole line in the diff file)` : line));
+  const text = lines.join('\n');
+  return text.length > MAX_SCREEN_CHARS ? `${text.slice(0, MAX_SCREEN_CHARS)}\n… (cut at ${MAX_SCREEN_CHARS} characters; the whole change is in the diff file)` : text;
+}
 
 /** Runs waiting for review, in the blind order. */
 export function pendingReviews(dir) {
@@ -51,7 +61,8 @@ export function reviewMaterial(dir, state, { baseEnv = process.env } = {}) {
     criteria: task.brief.acceptance_criteria,
     gate: state.gate_failed ? 'failed twice; nothing can be merged' : state.first_gate === 'pass' ? 'passed' : 'passed after one retry',
     merged: state.merged === true,
-    diff: diff.length > MAX_DIFF_CHARS ? `${diff.slice(0, MAX_DIFF_CHARS)}\n… (cut at ${MAX_DIFF_CHARS} characters)` : diff,
+    diff,
+    screen: screenDiff(diff),
     can_accept: !state.gate_failed && Boolean(state.head_sha),
   };
 }

@@ -9,6 +9,7 @@
 
 import path from 'node:path';
 import { git } from '../../../core/git.mjs';
+import { shortenLongLines } from '../../../core/text.mjs';
 import { harvestSessions, sessionsOfTask } from '../../../adapters/claude-code/harvest-cli.mjs';
 import { startHuman, stopHuman } from '../../../collector/lib/human.mjs';
 import { readEvents } from '../../../collector/lib/store.mjs';
@@ -20,13 +21,10 @@ import { runEnv, writeShims } from './run.mjs';
 
 // What the terminal shows; the diff file always has the whole change.
 const MAX_SCREEN_CHARS = 200000;
-const MAX_LINE_CHARS = 300;
-const KEEP_LINE_CHARS = 200;
 
 /** The change as the terminal shows it: very long lines shortened, the whole capped. */
 export function screenDiff(diff) {
-  const lines = diff.split('\n').map((line) => (line.length > MAX_LINE_CHARS ? `${line.slice(0, KEEP_LINE_CHARS)} … (${line.length - KEEP_LINE_CHARS} more characters, whole line in the diff file)` : line));
-  const text = lines.join('\n');
+  const text = shortenLongLines(diff, { where: 'whole line in the diff file' });
   return text.length > MAX_SCREEN_CHARS ? `${text.slice(0, MAX_SCREEN_CHARS)}\n… (cut at ${MAX_SCREEN_CHARS} characters; the whole change is in the diff file)` : text;
 }
 

@@ -22,6 +22,7 @@ const COMMANDS = {
   profile: { load: () => import('../governance/profiles/cli.mjs'), fn: 'runProfile', help: 'model, effort and verifiers per role for a plan' },
   rules: { load: () => import('../governance/gate/rules-cli.mjs'), fn: 'runRules', help: 'test the rules made from mistakes and check the code against them' },
   verify: { load: () => import('../governance/verify/cli.mjs'), fn: 'runVerifyCommand', help: 'run the app, drive scenarios and keep the evidence' },
+  review: { load: () => import('../governance/review/cli.mjs'), fn: 'runReviewCommand', help: 'reviewer agents on the exact commit, with proven findings' },
   harvest: { load: () => import('../adapters/claude-code/harvest-cli.mjs'), fn: 'runHarvest', help: 'collect token usage from Claude Code transcripts' },
   hooks: { load: () => import('../adapters/claude-code/cli.mjs'), fn: 'runHooks', help: 'install, uninstall or inspect the Claude Code hooks' },
   hook: { load: () => import('../adapters/claude-code/hook.mjs'), fn: 'runHook', help: 'Claude Code hook entry (reads the payload from stdin)', neverFail: true },

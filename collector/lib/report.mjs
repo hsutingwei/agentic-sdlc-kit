@@ -163,6 +163,17 @@ export function buildReport({ events, usageOf, config = {}, now = new Date() }) 
         byModel.set(m.model, per);
       }
     }
+    // Sterile reviewer runs fire no hooks and write no transcript; their usage comes with the event.
+    for (const r of t.review_runs) {
+      if (typeof r.output_tokens !== 'number') continue;
+      const key = `${r.model} (review)`;
+      const per = byModel.get(key) ?? emptyTokens();
+      for (const acc of [tokens, per]) {
+        acc.responses += r.turns ?? 1;
+        for (const k of TOKENS) acc[k] += r[k] ?? 0;
+      }
+      byModel.set(key, per);
+    }
     usageByTask.set(t.task_id, byModel);
 
     for (const v of t.verifications) verifications.push({ task_id: t.task_id, ts: v.ts, check: v.check, result: v.result, executor: v.executor, gate: v.gate ?? null, sha: v.sha ?? null, evidence: v.evidence ?? null });

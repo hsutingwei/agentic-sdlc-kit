@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "decision": "concerns",
+  "summary": "Both criteria are implemented; one boundary looks off by one.",
+  "changed": ["src/todos.mjs: list() takes an optional done filter", "src/server.mjs: GET /todos reads ?done="],
+  "criteria": [
+    { "id": "AC1", "result": "met" },
+    { "id": "AC2", "result": "unclear", "note": "A title of exactly 200 characters is refused." }
+  ],
+  "findings": [
+    {
+      "id": "F1",
+      "class": "act_on",
+      "title": "A 200-character title is refused",
+      "detail": "The check uses >= instead of >.",
+      "file": "src/todos.mjs",
+      "line": 12,
+      "reproduction": { "test": "import { test } from 'node:test';\nimport assert from 'node:assert/strict';\nimport { createStore } from '../../src/todos.mjs';\ntest('200 characters fit', () => { assert.equal(createStore().add({ title: 'x'.repeat(200) }).title.length, 200); });\n" }
+    },
+    { "id": "F2", "class": "noted", "title": "The integration test does not delete what it creates" }
+  ],
+  "read_first": ["src/todos.mjs validateTitle"]
+}

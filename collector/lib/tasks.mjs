@@ -71,6 +71,7 @@ export function deriveTasks(events) {
       worktree: undefined,
       verifications: [],
       gate_runs: [],
+      review_runs: [], // sterile reviewer runs: no hooks fire there, so their usage is in the event
       blocks: [], // { from, to?, reason, waiting_on? }
       escalations: [], // { ts, kind, reason }
       sessions: new Set(),
@@ -126,6 +127,9 @@ export function deriveTasks(events) {
         break;
       case 'gate.run':
         t.gate_runs.push({ ts: e.ts, gate: d.gate, result: d.result, sha: d.head_sha });
+        break;
+      case 'review.run':
+        t.review_runs.push({ ts: e.ts, ...d });
         break;
       default:
         if (e.source === 'hook') {

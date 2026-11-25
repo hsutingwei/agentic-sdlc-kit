@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:agentic-sdlc-kit:schema:review-verdict:1",
+  "title": "Review verdict",
+  "description": "What a reviewer agent returns for one change. Only accept passes the review; concerns and reject fail it. Findings are sorted and never applied automatically; an act_on finding may carry a reproduction that the kit runs to prove it.",
+  "type": "object",
+  "required": ["schema_version", "decision", "summary", "criteria", "findings"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": 1 },
+    "decision": { "enum": ["accept", "concerns", "reject"] },
+    "summary": { "description": "One or two sentences for the person, in the configured language.", "type": "string", "minLength": 1, "maxLength": 600 },
+    "changed": { "description": "What the change does, in a few lines.", "type": "array", "items": { "type": "string", "minLength": 1, "maxLength": 400 }, "maxItems": 12 },
+    "criteria": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "result"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^AC[0-9]+$" },
+          "result": { "enum": ["met", "not_met", "unclear"] },
+          "note": { "type": "string", "maxLength": 600 }
+        }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "maxItems": 30,
+      "items": {
+        "type": "object",
+        "required": ["id", "class", "title"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^F[0-9]+$" },
+          "class": { "enum": ["act_on", "consider", "noted"] },
+          "title": { "type": "string", "minLength": 1, "maxLength": 300 },
+          "detail": { "type": "string", "maxLength": 2000 },
+          "file": { "$ref": "#/$defs/repo_path" },
+          "line": { "type": "integer", "minimum": 1 },
+          "reproduction": {
+            "description": "A node:test file that asserts the behaviour the brief asks for, so that it fails on this change if the finding is real.",
+            "type": "object",
+            "required": ["test"],
+            "additionalProperties": false,
+            "properties": { "test": { "type": "string", "minLength": 1, "maxLength": 20000 } }
+          }
+        }
+      }
+    },
+    "read_first": { "description": "Files or functions the person should read; tests can often be skipped.", "type": "array", "items": { "type": "string", "minLength": 1, "maxLength": 300 }, "maxItems": 10 }
+  },
+  "$defs": {
+    "repo_path": {
+      "description": "Repository-relative path or glob. Never absolute, never containing a '..' segment.",
+      "type": "string",
+      "pattern": "^(?![/\\\\]|[A-Za-z]:)(?!(?:.*[/\\\\])?\\.\\.(?:[/\\\\]|$)).+$",
+      "maxLength": 512
+    }
+  }
+}

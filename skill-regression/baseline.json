@@ -1,16 +1,17 @@
 {
   "schema_version": 1,
-  "reviewer_sha256": "d129d999f0c3f3a8ec1f627ad20dea1b5039b47097ba68578cdb5837c5d8c913",
+  "reviewer_sha256": "0f6759901d5d85c812982d1ab1c5edb93adbb7cbc4d057d747793bc8d307e048",
   "model": "sonnet",
   "effort": "high",
   "claude_version": "2.1.330",
-  "kit_commit": "2453cd07dc34750fbe5853c8ebdf98151280c3fc",
+  "kit_commit": "030c543c0af1c69716b2bd5b2981b0377b27a122",
   "date": "2026-11-25",
   "totals": {
     "defects": 15,
     "hit": 15,
-    "act_on": 14,
-    "proven": 14,
+    "act_on": 15,
+    "proven": 15,
+    "kit_only": 0,
     "missed": 0,
     "clean": 8,
     "clean_accepted": 8,
@@ -18,83 +19,98 @@
     "seeded": 8,
     "seeded_flagged": 8,
     "not_reviewed": 0,
-    "cost_usd": 0.74
+    "cost_usd": 0.72
   },
   "defects": {
     "R01/D1": {
       "hit": true,
+      "by_reviewer": true,
       "act_on": true,
       "proven": true
     },
     "R01/D2": {
       "hit": true,
+      "by_reviewer": true,
       "act_on": true,
       "proven": true
     },
     "R02/D1": {
       "hit": true,
+      "by_reviewer": true,
       "act_on": true,
       "proven": true
     },
     "R02/D2": {
       "hit": true,
+      "by_reviewer": true,
       "act_on": true,
       "proven": true
     },
     "R03/D1": {
       "hit": true,
+      "by_reviewer": true,
       "act_on": true,
       "proven": true
     },
     "R03/D2": {
       "hit": true,
+      "by_reviewer": true,
       "act_on": true,
       "proven": true
     },
     "R04/D1": {
       "hit": true,
+      "by_reviewer": true,
       "act_on": true,
       "proven": true
     },
     "R05/D1": {
       "hit": true,
+      "by_reviewer": true,
       "act_on": true,
       "proven": true
     },
     "R05/D2": {
       "hit": true,
+      "by_reviewer": true,
       "act_on": true,
       "proven": true
     },
     "R06/D1": {
       "hit": true,
+      "by_reviewer": true,
       "act_on": true,
       "proven": true
     },
     "R06/D2": {
       "hit": true,
+      "by_reviewer": true,
       "act_on": true,
       "proven": true
     },
     "R07/D1": {
       "hit": true,
+      "by_reviewer": true,
       "act_on": true,
       "proven": true
     },
     "R07/D2": {
       "hit": true,
+      "by_reviewer": true,
       "act_on": true,
       "proven": true
     },
     "R08/D1": {
       "hit": true,
+      "by_reviewer": true,
       "act_on": true,
       "proven": true
     },
     "R08/D2": {
       "hit": true,
-      "act_on": false,
-      "proven": false
+      "by_reviewer": true,
+      "act_on": true,
+      "proven": true
     }
   },
   "false_alarms": {

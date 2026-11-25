@@ -91,4 +91,5 @@ findings a run proves.
   `consider`; no session transcript was written.
 - The first skill-regression baseline (sonnet, 16 reviews) found all fifteen
   planted defects with no false alarm; fourteen were proven, and the one left
-  unproven was the scope breach, which led to decision 5.
+  unproven was the scope breach, which led to decision 5. With it, a rerun
+  proved all fifteen, with no false alarm and no regression against the baseline.

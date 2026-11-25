@@ -25,6 +25,6 @@ test('DEMO-206 AC1: by title with plain string comparison, then by id', async ()
   assert.deepEqual((await get('')).body.map((t) => t.id), [1, 2, 3, 4]);
 });
 
-test('DEMO-206 AC2: other values answer 400', async () => {
-  for (const query of ['?sort=name', '?sort=', '?sort=TITLE']) assert.equal((await get(query)).status, 400, query);
+test('DEMO-206 AC2: other values and a repeated sort answer 400', async () => {
+  for (const query of ['?sort=name', '?sort=', '?sort=TITLE', '?sort=title&sort=bogus', '?sort=id&sort=id']) assert.equal((await get(query)).status, 400, query);
 });

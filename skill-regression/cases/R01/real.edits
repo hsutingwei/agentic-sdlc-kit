@@ -2,10 +2,12 @@
 <<<
 export function createServer(store = createStore()) {
 ===
-// ?limit (1 to 100) and ?offset (0 or more) pick one page; without them the list is whole.
+// ?limit (1 to 100) and ?offset (0 or more), each at most once, pick one page; without them the list is whole.
 function wholeNumber(params, name, min, max) {
   if (!params.has(name)) return undefined;
-  const raw = params.get(name);
+  const all = params.getAll(name);
+  if (all.length > 1) throw new ValidationError(`${name} may be given only once`);
+  const raw = all[0];
   if (!/^[0-9]+$/.test(raw)) throw new ValidationError(`${name} must be a whole number`);
   const n = Number(raw);
   if (n < min || n > max) throw new ValidationError(`${name} must be from ${min} to ${max}`);

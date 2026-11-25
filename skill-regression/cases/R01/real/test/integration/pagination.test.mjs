@@ -29,6 +29,6 @@ test('DEMO-201 AC1: limit and offset pick one page', async () => {
 });
 
 test('DEMO-201 AC2: other values answer 400; no parameters return everything', async () => {
-  for (const query of ['?limit=0', '?limit=101', '?limit=x', '?offset=-1', '?offset=1.5']) assert.equal((await get(query)).status, 400, query);
+  for (const query of ['?limit=0', '?limit=101', '?limit=x', '?offset=-1', '?offset=1.5', '?limit=2&limit=3', '?offset=1&offset=1']) assert.equal((await get(query)).status, 400, query);
   assert.deepEqual((await get('')).titles, ['a', 'b', 'c', 'd', 'e']);
 });

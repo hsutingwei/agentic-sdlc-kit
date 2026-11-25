@@ -11,3 +11,7 @@ Never shown to a reviewer.
 The first baseline (2026-11-25) found that an earlier brief asked for code-point
 order while the clean change compares UTF-16 code units, which differs for
 characters outside the BMP; the brief now says what the clean change does.
+
+The scope-check rerun (2026-11-25) proved that the clean change took the first of
+a repeated `sort`, which the brief did not settle; the brief now asks for 400, both
+variants refuse it, and the clean test checks it.

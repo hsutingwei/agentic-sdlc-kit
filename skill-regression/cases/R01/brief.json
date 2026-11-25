@@ -10,7 +10,7 @@
   "scope": { "allowed_paths": ["src/**", "test/**"], "forbidden_paths": [".asdk/**", ".claude/**", "briefs/**"] },
   "acceptance_criteria": [
     { "id": "AC1", "text": "GET /todos?limit=n&offset=m returns at most n items starting after the first m, in the usual order; limit alone starts at the first item, offset alone returns the rest." },
-    { "id": "AC2", "text": "limit must be a whole number from 1 to 100 and offset a whole number of at least 0; any other value answers 400. GET /todos without them still returns every item." }
+    { "id": "AC2", "text": "limit must be a whole number from 1 to 100 and offset a whole number of at least 0; any other value, or either one given more than once, answers 400. GET /todos without them still returns every item." }
   ],
   "base_branch": "dev",
   "estimate_hours": 1.5

@@ -16,3 +16,7 @@ criteria open should find both.
 The first baseline (2026-11-25) found that an earlier clean change capped offset at
 `Number.MAX_SAFE_INTEGER`, which the brief does not allow; the cap is gone and the
 clean test asks for a larger offset.
+
+The scope-check rerun (2026-11-25) proved that the clean change took the first of
+a repeated `limit` or `offset`, which the brief did not settle; the brief now asks
+for 400, both variants refuse a repeated parameter, and the clean test checks it.

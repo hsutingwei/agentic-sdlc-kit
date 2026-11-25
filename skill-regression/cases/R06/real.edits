@@ -2,9 +2,12 @@
 <<<
 export function createServer(store = createStore()) {
 ===
-// ?sort=title orders by title (plain string comparison, then id); ?sort=id, the default, by id.
+// ?sort=title orders by title (plain string comparison, then id); ?sort=id, the default, by id;
+// sort may be given once.
 function sorted(list, params) {
-  const sort = params.get('sort') ?? 'id';
+  const all = params.getAll('sort');
+  if (all.length > 1) throw new ValidationError('sort may be given only once');
+  const sort = all[0] ?? 'id';
   if (sort === 'id') return list;
   if (sort === 'title') return [...list].sort((a, b) => (a.title < b.title ? -1 : a.title > b.title ? 1 : a.id - b.id));
   throw new ValidationError('sort must be id or title');

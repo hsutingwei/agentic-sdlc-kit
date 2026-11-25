@@ -5,6 +5,23 @@ until 1.0 the command line and file formats may still change.
 
 ## Unreleased
 
+### Reviewer agents (P8a)
+
+- `asdk review run --task <ID>`: the profile's reviewers run sterile on the
+  exact commit of the task worktree, one independent run per verifier; each
+  verdict follows the new `review-verdict` contract and is recorded as an agent
+  review (only `accept` passes) ([ADR-0009](docs/adr/0009-reviewer-agents.md)).
+- `act_on` findings are proven by running the reproduction the reviewer gives;
+  an unproven one is shown as `consider`.
+- `asdk review show|list`; `.asdk/review.json` for the notes' language and
+  proving; reviewer tokens count for the task in reports.
+
+### Experiment E1, run (E1b)
+
+- All 42 runs done; agent-side results in [experiments.md](docs/experiments.md).
+- The review screen shortens very long lines; `e1 exclude-time` leaves a review
+  timer that ran on out of the analysis.
+
 ### Experiment E1, prepared (E1a)
 
 - `tools/experiment/`: twelve fictional tasks with hidden tests and reference

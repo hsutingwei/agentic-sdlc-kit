@@ -13,9 +13,10 @@ ends with `npm test` actually run and the result reported.
 | P5 | Collector: reports ([metrics](metrics.md), [ADR-0006](adr/0006-efficiency-score.md)), push check, efficiency scorecard, fictional [sample report](../examples/sample-report/); a [real Claude Code run](demo-run.md) of the demo; merge to `main` as v0.1 | done |
 | P6a | Governance templates (`AGENTS.md`, `CLAUDE.md`, deny rules) and gates G1–G3 applied to `examples/demo-api`; `references` and `deny-sync` checks; risk paths; merge policy by effective risk ([ADR-0007](adr/0007-risk-and-merge-policy.md)); blocking pre-push check | done |
 | P6b | Profiles that pick model, reasoning effort, isolation and verifier count from plan × risk × role ([ADR-0008](adr/0008-plan-profiles.md)); `asdk verify` and a verification skill (launch, health check, drive, evidence, clean-up); repeated mistakes turned into checked rules | done |
-| E1 | Experiment while quota is plentiful: 12 small demo tasks run with the `ultra`, `max` and `pro` profiles, comparing human review minutes, first-pass rate, escaped defects and tokens per task; results with sample size and limits in [experiments.md](experiments.md). E1a (task catalogue, runner, blind review, analysis) done; E1b (running it) and E1c (results) next | E1a done |
+| E1 | Experiment while quota is plentiful: 12 small demo tasks run with the `ultra`, `max` and `pro` profiles, comparing human review minutes, first-pass rate, escaped defects and tokens per task; results with sample size and limits in [experiments.md](experiments.md). E1a (task catalogue, runner, blind review, analysis) and E1b (the 42 runs) done; E1c (results after the reviews) next; E1d (reviewer agents on the same changes, compared with the person's decisions and the hidden tests) after P8a | E1b done |
+| P8 | Reviewer agents and skill regression, before P7 because human review time is the first bottleneck and P7 waits for E1. P8a: a sterile reviewer run on the exact commit, its verdict recorded as an agent review (only `accept` passes), findings sorted and never applied automatically, and "act on" findings proven by running the reproduction the reviewer gives; P8b: skill regression cases (a clean and a seeded diff each, new fictional features, not the E1 tasks) scored for hits, misses and false alarms | P8a done ([ADR-0009](adr/0009-reviewer-agents.md)) |
 | P7 | Orchestration, scoped by E1: planner workflow with one playbook per task type (skipped steps carry a reason), report verification, isolation levels, worktree pool, dispatch guard, `budget status` with tier downgrade on low quota, a local job queue for gates and installs | |
-| P8 | Skill regression and reviewer cases | |
+| E2 | After E1c: the same tasks with the kit alone and with an external skill pack (pstack first), only with the person's consent to install it into the experiment's demo projects | |
 | P9 | Documentation, ADRs, README, pre-publication checks (full-history scan, action pinning) | |
 
 **Demo-ready line:** after P1 and P5 the kit can be shown end to end (v0.1);
@@ -59,9 +60,11 @@ reports compare real numbers before and after a plan change.
 
 ## Ideas borrowed from other workflows
 
-Reviewed: pstack (Lauren Tan, a Cursor plugin; read through third-party
-write-ups only). The kit stays neutral about skill packs: ideas are reimplemented
-here from scratch, and whether a pack helps is measured, not assumed (E1).
+Reviewed: pstack (Lauren Tan, MIT, in `cursor/plugins`; Cursor first, with a
+Claude Code install; first through third-party write-ups, then its public README
+and a few of its files on 2026-11-25). The kit stays neutral about skill packs:
+ideas are reimplemented here from scratch, and whether a pack helps is measured,
+not assumed (E1 without one, E2 with one).
 
 - Evidence over "the build passed": verify on the real interface and attach the
   output (P6 verification skill).
@@ -74,6 +77,9 @@ here from scratch, and whether a pack helps is measured, not assumed (E1).
 - Parallel workers report PASS, ISSUES or BLOCKED (P7).
 - Review findings are sorted (act on, consider, noted, dismissed) and never
   applied automatically (P8).
+- Keep only the findings a run proves: an "act on" finding carries a
+  reproduction that the kit runs; one that does not reproduce drops to
+  "consider" (P8).
 - Verifier count follows risk: verification is token-intensive (P6, P7).
 - Not adopted: automatic merges to `main`. Only `dev` may receive merges
   without a human, and only for low-risk tasks that passed independent checks.
@@ -105,6 +111,7 @@ here from scratch, and whether a pack helps is measured, not assumed (E1).
 - **Push check** – warns by default; with `push_check.block` the pre-push hook refuses a commit without a passing run of the push gate (G3). Push times from the hook, else approximately from the reflog.
 - **Risk and merging** – effective risk is the higher of the declared risk and the minimum from `.asdk/risk-paths.json`; `merge_policy` sets the gate and the reviews per risk (low: G1; medium: G2 + one review; high and critical: G2 + an agent and a human review), all on the exact commit merged; the rules are read from the integration branch ([ADR-0007](adr/0007-risk-and-merge-policy.md)).
 - **Reviews** – `task verify --check review` with `--executor agent|human`, always bound to a commit. Reviewer agents come in P8.
+- **Reviewer agents (P8)** – run sterile on a packet outside the repository (brief, criteria, the diff of the exact commit, gate result, evidence summary); as many as the profile's verifiers for the risk; only `accept` records a passing review, `concerns` and `reject` a failing one, which a person must clear; notes in English unless `.asdk/review.json` names another language; regression cases use new fictional features, never the E1 tasks.
 - **Templates** – `AGENTS.md` holds the rules; `CLAUDE.md` is one line, `@AGENTS.md`, because Claude Code reads `AGENTS.md` on its own only without a `CLAUDE.md`. Deny rules use the `Bash(cmd *)` form and are documented as not a security boundary.
 - **Profiles** – roles map to tiers and tiers to models per profile, with overrides by risk; the plan comes from `--plan` or the latest plan change; a project replaces whole profiles; `profile apply` writes agent files only when asked; `task start` records the profile; a review count may be `"profile"` (1 without a profile); `health` warns about `CLAUDE_CODE_EFFORT_LEVEL` and `CLAUDE_CODE_SUBAGENT_MODEL_FORCE` ([ADR-0008](adr/0008-plan-profiles.md)).
 - **Verification** – `.asdk/verify.json` (protected) says how to start the application; scenarios in `test/scenarios/` (editable by agents) each get a freshly started application; evidence stays in `~/.agentic-metrics/evidence/` with response bodies up to 4 KB (`record_bodies: false` drops them); `--record` adds a `ui` check with the evidence hash, only on a clean tree.

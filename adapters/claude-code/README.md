@@ -14,7 +14,7 @@ Contents:
 
 Planned:
 - Sub-agent definitions generated from role and model-tier profiles (P6).
-- Mapping of `task-brief` isolation levels to Claude Code: `fresh` → a sub-agent; `sterile` → a headless run in a directory outside the repository with CLAUDE.md, memory, skills, hooks and MCP disabled (P7).
+- Mapping of `task-brief` isolation levels to Claude Code: `fresh` → a sub-agent; `sterile` → a headless run in a directory outside the repository with CLAUDE.md, memory, skills, hooks and MCP disabled ([`sterile.mjs`](sterile.mjs), used by reviewer agents since P8a; other roles in P7).
 
 Other tools (Codex, Cursor, …) can be supported by adding a sibling adapter;
 none is planned in this project.

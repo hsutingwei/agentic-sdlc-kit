@@ -19,7 +19,7 @@ const get = async (query) => {
   return { status: res.status, body: await res.json() };
 };
 
-test('DEMO-206 AC1: by title in code-point order, then by id', async () => {
+test('DEMO-206 AC1: by title with plain string comparison, then by id', async () => {
   assert.deepEqual((await get('?sort=title')).body.map((t) => `${t.title}${t.id}`), ['B2', 'a3', 'b1', 'b4']);
   assert.deepEqual((await get('?sort=id')).body.map((t) => t.id), [1, 2, 3, 4]);
   assert.deepEqual((await get('')).body.map((t) => t.id), [1, 2, 3, 4]);

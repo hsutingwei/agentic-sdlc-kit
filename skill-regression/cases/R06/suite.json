@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "defects": [
-    { "id": "D1", "title": "sort=title uses localeCompare, not the code-point order the brief asks for", "file": "src/server.mjs", "keywords": ["localeCompare", "locale", "code-point", "code point", "case"] },
+    { "id": "D1", "title": "sort=title uses localeCompare, not the plain string comparison the brief asks for", "file": "src/server.mjs", "keywords": ["localeCompare", "locale", "plain string", "string comparison", "case"] },
     { "id": "D2", "title": "An unknown sort value is ignored instead of answering 400", "file": "src/server.mjs", "keywords": ["400", "unknown sort", "other value", "ignored", "invalid sort"] }
   ]
 }

@@ -2,7 +2,7 @@
 <<<
 export function createServer(store = createStore()) {
 ===
-// ?sort=title orders by title (code points, then id); ?sort=id, the default, by id.
+// ?sort=title orders by title (plain string comparison, then id); ?sort=id, the default, by id.
 function sorted(list, params) {
   const sort = params.get('sort') ?? 'id';
   if (sort === 'id') return list;

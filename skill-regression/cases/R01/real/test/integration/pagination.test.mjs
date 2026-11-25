@@ -25,6 +25,7 @@ test('DEMO-201 AC1: limit and offset pick one page', async () => {
   assert.deepEqual((await get('?limit=2&offset=2')).titles, ['c', 'd']);
   assert.deepEqual((await get('?offset=4')).titles, ['e']);
   assert.deepEqual((await get('?limit=10&offset=3')).titles, ['d', 'e']);
+  assert.deepEqual((await get('?offset=9007199254740993')).titles, []);
 });
 
 test('DEMO-201 AC2: other values answer 400; no parameters return everything', async () => {

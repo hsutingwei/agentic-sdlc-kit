@@ -14,7 +14,7 @@ function wholeNumber(params, name, min, max) {
 
 function page(list, params) {
   const limit = wholeNumber(params, 'limit', 1, 100);
-  const offset = wholeNumber(params, 'offset', 0, Number.MAX_SAFE_INTEGER) ?? 0;
+  const offset = wholeNumber(params, 'offset', 0, Infinity) ?? 0;
   return list.slice(offset, limit === undefined ? undefined : offset + limit);
 }
 

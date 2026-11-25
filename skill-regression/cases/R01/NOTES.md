@@ -12,3 +12,7 @@ Never shown to a reviewer.
 
 Both are plain against AC1 and AC2; a reviewer who reads `page()` with the
 criteria open should find both.
+
+The first baseline (2026-11-25) found that an earlier clean change capped offset at
+`Number.MAX_SAFE_INTEGER`, which the brief does not allow; the cap is gone and the
+clean test asks for a larger offset.

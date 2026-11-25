@@ -17,6 +17,7 @@
   assert.deepEqual((await get('?limit=2&offset=2')).titles, ['c', 'd']);
   assert.deepEqual((await get('?offset=4')).titles, ['e']);
   assert.deepEqual((await get('?limit=10&offset=3')).titles, ['d', 'e']);
+  assert.deepEqual((await get('?offset=9007199254740993')).titles, []);
 ===
   assert.deepEqual((await get('?offset=4')).titles, ['e']);
 >>>

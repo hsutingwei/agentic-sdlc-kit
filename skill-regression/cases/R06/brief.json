@@ -9,7 +9,7 @@
   "assignment": { "role": "implementer", "model_tier": "standard", "isolation": "fresh" },
   "scope": { "allowed_paths": ["src/**", "test/**"], "forbidden_paths": [".asdk/**", ".claude/**", "briefs/**"] },
   "acceptance_criteria": [
-    { "id": "AC1", "text": "GET /todos?sort=title returns the items ordered by title in plain code-point order (so \"B\" comes before \"a\"), equal titles by id; sort=id or no sort keeps the order by id." },
+    { "id": "AC1", "text": "GET /todos?sort=title returns the items ordered by title with plain string comparison, as JavaScript's < compares strings (so \"B\" comes before \"a\"), equal titles by id; sort=id or no sort keeps the order by id." },
     { "id": "AC2", "text": "Any other value of sort answers 400." }
   ],
   "base_branch": "dev",

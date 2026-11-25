@@ -1,0 +1,27 @@
+@@ src/todos.mjs defect D1
+<<<
+  if ([...note].length > MAX_NOTE) throw new ValidationError(`note must be at most ${MAX_NOTE} characters`);
+===
+  if (Buffer.byteLength(note) > MAX_NOTE) throw new ValidationError(`note must be at most ${MAX_NOTE} characters`);
+>>>
+
+@@ src/todos.mjs defect D2
+<<<
+      if (patch?.note === null) delete next.note;
+===
+      if (patch?.note === null) next.note = null;
+>>>
+
+@@ test/unit/notes.test.mjs hides D1
+<<<
+  assert.equal(store.add({ title: 'a', note: '字'.repeat(500) }).note.length, 500);
+===
+  assert.equal(store.add({ title: 'a', note: 'x'.repeat(500) }).note.length, 500);
+>>>
+
+@@ test/unit/notes.test.mjs hides D2
+<<<
+  assert.equal('note' in store.get(1), false);
+===
+  assert.ok(!store.get(1).note);
+>>>

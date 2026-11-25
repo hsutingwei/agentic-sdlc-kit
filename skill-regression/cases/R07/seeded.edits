@@ -1,0 +1,38 @@
+@@ src/todos.mjs defect D1
+<<<
+      if (items.size >= MAX_ITEMS) throw new LimitError('too many items');
+===
+      if (items.size > MAX_ITEMS) throw new LimitError('too many items');
+>>>
+
+@@ src/server.mjs defect D2
+<<<
+      if (err instanceof LimitError) return send(res, 409, { error: err.message });
+===
+      if (err instanceof LimitError) return send(res, 400, { error: err.message });
+>>>
+
+@@ test/unit/limit.test.mjs hides D1
+<<<
+  for (let i = 0; i < 100; i++) store.add({ title: `item ${i}` });
+  assert.throws(() => store.add({ title: 'one too many' }), LimitError);
+  assert.equal(store.list().length, 100);
+===
+  for (let i = 0; i < 101; i++) store.add({ title: `item ${i}` });
+  assert.throws(() => store.add({ title: 'one too many' }), LimitError);
+  assert.equal(store.list().length, 101);
+>>>
+
+@@ test/integration/limit.test.mjs hides D1
+<<<
+    for (let i = 0; i < 100; i++) assert.equal((await post({ title: `item ${i}` })).status, 201);
+===
+    for (let i = 0; i < 101; i++) assert.equal((await post({ title: `item ${i}` })).status, 201);
+>>>
+
+@@ test/integration/limit.test.mjs hides D2
+<<<
+    assert.equal(refused.status, 409);
+===
+    assert.ok(refused.status >= 400);
+>>>

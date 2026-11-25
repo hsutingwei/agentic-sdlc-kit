@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "defects": [
+    { "id": "D1", "title": "DELETE /todos without done=true clears finished items instead of answering 405", "file": "src/server.mjs", "keywords": ["405", "without done", "no parameter", "any delete"] },
+    { "id": "D2", "title": "deleted reports the number of items left, not the number removed", "file": "src/todos.mjs", "keywords": ["items.size", "remaining", "left", "number removed"] }
+  ]
+}

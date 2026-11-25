@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "task_id": "DEMO-207",
+  "project_id": "demo-api",
+  "title": "Keep at most 100 todo items",
+  "goal": "The in-memory store cannot grow without bound.",
+  "type": "feature",
+  "risk": "medium",
+  "assignment": { "role": "implementer", "model_tier": "standard", "isolation": "fresh" },
+  "scope": { "allowed_paths": ["src/**", "test/**"], "forbidden_paths": [".asdk/**", ".claude/**", "briefs/**"] },
+  "acceptance_criteria": [
+    { "id": "AC1", "text": "When 100 items exist, POST /todos answers 409 with {\"error\": \"too many items\"} and adds nothing; up to 100 items can be created." },
+    { "id": "AC2", "text": "Deleting an item makes room again; other errors keep their status codes." }
+  ],
+  "base_branch": "dev",
+  "estimate_hours": 1
+}

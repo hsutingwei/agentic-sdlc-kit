@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "defects": [
+    { "id": "D1", "title": "The limit check uses > instead of >=, so a 101st item is accepted", "file": "src/todos.mjs", "keywords": ["101", "off by one", "off-by-one", ">=", "> max_items"] },
+    { "id": "D2", "title": "A full store answers 400 instead of 409", "file": "src/server.mjs", "keywords": ["409", "400 instead", "status code", "conflict"] }
+  ]
+}

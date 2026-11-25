@@ -1,0 +1,29 @@
+@@ src/server.mjs
+<<<
+export function createServer(store = createStore()) {
+===
+// ?limit (1 to 100) and ?offset (0 or more) pick one page; without them the list is whole.
+function wholeNumber(params, name, min, max) {
+  if (!params.has(name)) return undefined;
+  const raw = params.get(name);
+  if (!/^[0-9]+$/.test(raw)) throw new ValidationError(`${name} must be a whole number`);
+  const n = Number(raw);
+  if (n < min || n > max) throw new ValidationError(`${name} must be from ${min} to ${max}`);
+  return n;
+}
+
+function page(list, params) {
+  const limit = wholeNumber(params, 'limit', 1, 100);
+  const offset = wholeNumber(params, 'offset', 0, Number.MAX_SAFE_INTEGER) ?? 0;
+  return list.slice(offset, limit === undefined ? undefined : offset + limit);
+}
+
+export function createServer(store = createStore()) {
+>>>
+
+@@ src/server.mjs
+<<<
+        if (req.method === 'GET') return send(res, 200, store.list());
+===
+        if (req.method === 'GET') return send(res, 200, page(store.list(), url.searchParams));
+>>>

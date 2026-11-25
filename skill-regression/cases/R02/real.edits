@@ -1,0 +1,30 @@
+@@ src/todos.mjs
+<<<
+    remove(id) {
+      return items.delete(id);
+    },
+===
+    remove(id) {
+      return items.delete(id);
+    },
+
+    // Removes every finished item and says how many.
+    removeDone() {
+      let removed = 0;
+      for (const [id, todo] of items) {
+        if (todo.done) {
+          items.delete(id);
+          removed++;
+        }
+      }
+      return removed;
+    },
+>>>
+
+@@ src/server.mjs
+<<<
+        if (req.method === 'POST') return send(res, 201, store.add(await readJson(req)));
+===
+        if (req.method === 'POST') return send(res, 201, store.add(await readJson(req)));
+        if (req.method === 'DELETE' && url.searchParams.getAll('done').join(',') === 'true') return send(res, 200, { deleted: store.removeDone() });
+>>>

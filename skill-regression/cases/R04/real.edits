@@ -1,0 +1,12 @@
+@@ src/server.mjs
+<<<
+      const match = /^\/todos\/([1-9][0-9]*)$/.exec(url.pathname);
+===
+      if (url.pathname === '/todos/count') {
+        if (req.method !== 'GET') return send(res, 405, { error: 'method not allowed' });
+        const all = store.list();
+        const done = all.filter((t) => t.done).length;
+        return send(res, 200, { total: all.length, done, open: all.length - done });
+      }
+      const match = /^\/todos\/([1-9][0-9]*)$/.exec(url.pathname);
+>>>

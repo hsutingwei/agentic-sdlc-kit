@@ -1,0 +1,31 @@
+@@ src/todos.mjs
+<<<
+const copy = (todo) => ({ ...todo });
+===
+const MAX_NOTE = 500;
+
+function validateNote(note) {
+  if (typeof note !== 'string') throw new ValidationError('note must be a string');
+  if ([...note].length > MAX_NOTE) throw new ValidationError(`note must be at most ${MAX_NOTE} characters`);
+  return note;
+}
+
+const copy = (todo) => ({ ...todo });
+>>>
+
+@@ src/todos.mjs
+<<<
+      const todo = { id: nextId++, title, done: false };
+===
+      const note = input?.note === undefined ? undefined : validateNote(input.note);
+      const todo = { id: nextId++, title, done: false, ...(note === undefined ? {} : { note }) };
+>>>
+
+@@ src/todos.mjs
+<<<
+      if (patch?.title !== undefined) next.title = validateTitle(patch.title);
+===
+      if (patch?.title !== undefined) next.title = validateTitle(patch.title);
+      if (patch?.note === null) delete next.note;
+      else if (patch?.note !== undefined) next.note = validateNote(patch.note);
+>>>

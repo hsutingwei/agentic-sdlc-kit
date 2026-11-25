@@ -1,0 +1,27 @@
+@@ src/todos.mjs
+<<<
+    remove(id) {
+===
+    // The whole item at once: fields left out get their defaults.
+    replace(id, input) {
+      if (!items.has(id)) return null;
+      const title = validateTitle(input?.title);
+      if (input?.done !== undefined && typeof input.done !== 'boolean') throw new ValidationError('done must be true or false');
+      const todo = { id, title, done: input?.done ?? false };
+      items.set(id, todo);
+      return copy(todo);
+    },
+
+    remove(id) {
+>>>
+
+@@ src/server.mjs
+<<<
+      if (req.method === 'DELETE') return store.remove(id) ? send(res, 204) : send(res, 404, { error: 'not found' });
+===
+      if (req.method === 'PUT') {
+        const todo = store.replace(id, await readJson(req));
+        return todo ? send(res, 200, todo) : send(res, 404, { error: 'not found' });
+      }
+      if (req.method === 'DELETE') return store.remove(id) ? send(res, 204) : send(res, 404, { error: 'not found' });
+>>>

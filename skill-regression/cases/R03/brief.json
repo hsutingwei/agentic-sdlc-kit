@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "task_id": "DEMO-203",
+  "project_id": "demo-api",
+  "title": "Add an optional note to todo items",
+  "goal": "Clients can keep a short note with an item.",
+  "type": "feature",
+  "risk": "low",
+  "assignment": { "role": "implementer", "model_tier": "standard", "isolation": "fresh" },
+  "scope": { "allowed_paths": ["src/**", "test/**"], "forbidden_paths": [".asdk/**", ".claude/**", "briefs/**"] },
+  "acceptance_criteria": [
+    { "id": "AC1", "text": "POST /todos and PATCH /todos/:id accept an optional note: a string of at most 500 characters, counted as characters (500 Chinese characters fit); a longer note or one that is not a string answers 400." },
+    { "id": "AC2", "text": "An item has a note field only when a note was given; PATCH with \"note\": null removes the field again." }
+  ],
+  "base_branch": "dev",
+  "estimate_hours": 1
+}

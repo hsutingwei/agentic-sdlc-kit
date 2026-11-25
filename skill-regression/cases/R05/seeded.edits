@@ -1,0 +1,39 @@
+@@ src/todos.mjs defect D1
+<<<
+      const todo = { id, title, done: input?.done ?? false };
+===
+      const todo = { id, title, done: input?.done ?? items.get(id)?.done ?? false };
+>>>
+
+@@ src/todos.mjs defect D2
+<<<
+      if (!items.has(id)) return null;
+      const title = validateTitle(input?.title);
+      if (input?.done !== undefined
+===
+      const title = validateTitle(input?.title);
+      if (input?.done !== undefined
+>>>
+
+@@ test/unit/replace.test.mjs hides D1
+<<<
+  store.add({ title: 'first' });
+  store.update(1, { done: true });
+===
+  store.add({ title: 'first' });
+>>>
+
+@@ test/unit/replace.test.mjs hides D2
+<<<
+test('DEMO-205 AC2: an unknown id answers null and creates nothing', () => {
+  const store = createStore();
+  assert.equal(store.replace(7, { title: 'ghost' }), null);
+  assert.equal(store.list().length, 0);
+});
+===
+test('DEMO-205 AC2: replacing keeps the id', () => {
+  const store = createStore();
+  store.add({ title: 'one' });
+  assert.equal(store.replace(1, { title: 'two' }).id, 1);
+});
+>>>

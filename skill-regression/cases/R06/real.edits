@@ -1,0 +1,21 @@
+@@ src/server.mjs
+<<<
+export function createServer(store = createStore()) {
+===
+// ?sort=title orders by title (code points, then id); ?sort=id, the default, by id.
+function sorted(list, params) {
+  const sort = params.get('sort') ?? 'id';
+  if (sort === 'id') return list;
+  if (sort === 'title') return [...list].sort((a, b) => (a.title < b.title ? -1 : a.title > b.title ? 1 : a.id - b.id));
+  throw new ValidationError('sort must be id or title');
+}
+
+export function createServer(store = createStore()) {
+>>>
+
+@@ src/server.mjs
+<<<
+        if (req.method === 'GET') return send(res, 200, store.list());
+===
+        if (req.method === 'GET') return send(res, 200, sorted(store.list(), url.searchParams));
+>>>

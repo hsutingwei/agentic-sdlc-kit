@@ -1,0 +1,38 @@
+@@ src/server.mjs defect D1
+<<<
+  if (sort === 'title') return [...list].sort((a, b) => (a.title < b.title ? -1 : a.title > b.title ? 1 : a.id - b.id));
+===
+  if (sort === 'title') return [...list].sort((a, b) => a.title.localeCompare(b.title) || a.id - b.id);
+>>>
+
+@@ src/server.mjs defect D2
+<<<
+  throw new ValidationError('sort must be id or title');
+===
+  return list;
+>>>
+
+@@ test/integration/sort.test.mjs hides D1
+<<<
+  for (const title of ['b', 'B', 'a', 'b']) await fetch(`${base}/todos`, { method: 'POST', body: JSON.stringify({ title }) });
+===
+  for (const title of ['b', 'c', 'a', 'b']) await fetch(`${base}/todos`, { method: 'POST', body: JSON.stringify({ title }) });
+>>>
+
+@@ test/integration/sort.test.mjs hides D1
+<<<
+  assert.deepEqual((await get('?sort=title')).body.map((t) => `${t.title}${t.id}`), ['B2', 'a3', 'b1', 'b4']);
+===
+  assert.deepEqual((await get('?sort=title')).body.map((t) => `${t.title}${t.id}`), ['a3', 'b1', 'b4', 'c2']);
+>>>
+
+@@ test/integration/sort.test.mjs hides D2
+<<<
+test('DEMO-206 AC2: other values answer 400', async () => {
+  for (const query of ['?sort=name', '?sort=', '?sort=TITLE']) assert.equal((await get(query)).status, 400, query);
+});
+===
+test('DEMO-206 AC2: sort=title answers 200', async () => {
+  assert.equal((await get('?sort=title')).status, 200);
+});
+>>>

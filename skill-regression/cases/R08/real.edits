@@ -1,0 +1,9 @@
+@@ src/todos.mjs
+<<<
+      const next = { ...todo };
+===
+      for (const key of Object.keys(patch ?? {})) {
+        if (key !== 'title' && key !== 'done') throw new ValidationError(`unknown field ${key}`);
+      }
+      const next = { ...todo };
+>>>

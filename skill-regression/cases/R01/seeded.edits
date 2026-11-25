@@ -1,0 +1,29 @@
+@@ src/server.mjs defect D1
+<<<
+  return list.slice(offset, limit === undefined ? undefined : offset + limit);
+===
+  return list.slice(offset, limit === undefined ? undefined : limit);
+>>>
+
+@@ src/server.mjs defect D2
+<<<
+  const limit = wholeNumber(params, 'limit', 1, 100);
+===
+  const limit = wholeNumber(params, 'limit', 0, 100);
+>>>
+
+@@ test/integration/pagination.test.mjs hides D1
+<<<
+  assert.deepEqual((await get('?limit=2&offset=2')).titles, ['c', 'd']);
+  assert.deepEqual((await get('?offset=4')).titles, ['e']);
+  assert.deepEqual((await get('?limit=10&offset=3')).titles, ['d', 'e']);
+===
+  assert.deepEqual((await get('?offset=4')).titles, ['e']);
+>>>
+
+@@ test/integration/pagination.test.mjs hides D2
+<<<
+  for (const query of ['?limit=0', '?limit=101',
+===
+  for (const query of ['?limit=101',
+>>>

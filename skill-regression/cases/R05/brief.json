@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "task_id": "DEMO-205",
+  "project_id": "demo-api",
+  "title": "Replace a todo item with PUT",
+  "goal": "Clients that keep the whole item can send it back in one request instead of patching single fields.",
+  "type": "feature",
+  "risk": "medium",
+  "assignment": { "role": "implementer", "model_tier": "standard", "isolation": "fresh" },
+  "scope": { "allowed_paths": ["src/**", "test/**"], "forbidden_paths": [".asdk/**", ".claude/**", "briefs/**"] },
+  "acceptance_criteria": [
+    { "id": "AC1", "text": "PUT /todos/:id with {\"title\", \"done\"?} replaces the item: the title is validated as on POST, done is false when it is left out, and the answer is 200 with the new item." },
+    { "id": "AC2", "text": "PUT on an id that does not exist answers 404 and creates nothing." }
+  ],
+  "base_branch": "dev",
+  "estimate_hours": 1
+}

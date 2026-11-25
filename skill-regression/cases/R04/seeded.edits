@@ -1,0 +1,13 @@
+@@ src/server.mjs defect D1
+<<<
+        if (req.method !== 'GET') return send(res, 405, { error: 'method not allowed' });
+        const all = store.list();
+===
+        const all = store.list();
+>>>
+
+@@ test/integration/count.test.mjs hides D1
+<<<
+  for (const method of ['POST', 'PATCH', 'DELETE']) assert.equal((await call(method, '/todos/count', {})).status, 405, method);
+===
+>>>

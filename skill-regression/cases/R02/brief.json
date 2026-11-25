@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "task_id": "DEMO-202",
+  "project_id": "demo-api",
+  "title": "Clear finished items in one request",
+  "goal": "Clients can remove every finished item at once instead of deleting them one by one.",
+  "type": "feature",
+  "risk": "medium",
+  "assignment": { "role": "implementer", "model_tier": "standard", "isolation": "fresh" },
+  "scope": { "allowed_paths": ["src/**", "test/**"], "forbidden_paths": [".asdk/**", ".claude/**", "briefs/**"] },
+  "acceptance_criteria": [
+    { "id": "AC1", "text": "DELETE /todos?done=true removes every finished item, keeps the open ones and answers 200 with {\"deleted\": n}, n being the number removed." },
+    { "id": "AC2", "text": "DELETE /todos without done=true (no parameter or any other value) still answers 405 and removes nothing." }
+  ],
+  "base_branch": "dev",
+  "estimate_hours": 1
+}

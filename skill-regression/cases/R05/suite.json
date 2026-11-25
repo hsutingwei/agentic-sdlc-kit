@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "defects": [
+    { "id": "D1", "title": "PUT without done keeps the old done instead of setting it to false", "file": "src/todos.mjs", "keywords": ["keeps the old", "previous done", "default", "false when", "left out"] },
+    { "id": "D2", "title": "PUT on an unknown id creates the item and answers 200 instead of 404", "file": "src/todos.mjs", "keywords": ["404", "unknown id", "creates", "does not exist", "items.has"] }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "defects": [
+    { "id": "D1", "title": "A page after the first holds the wrong items: the slice ends at limit instead of offset + limit", "file": "src/server.mjs", "keywords": ["offset + limit", "offset+limit", "end index", "slice"] },
+    { "id": "D2", "title": "limit=0 is accepted instead of answering 400", "file": "src/server.mjs", "keywords": ["limit=0", "limit of 0", "limit 0", "zero"] }
+  ]
+}

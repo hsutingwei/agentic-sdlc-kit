@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "defects": [
+    { "id": "D1", "title": "The note limit counts UTF-8 bytes, so far fewer than 500 Chinese characters fit", "file": "src/todos.mjs", "keywords": ["byteLength", "bytes", "byte", "utf-8", "multi-byte"] },
+    { "id": "D2", "title": "note: null keeps the field with a null value instead of removing it", "file": "src/todos.mjs", "keywords": ["null", "delete", "removes the field", "remove the field"] }
+  ]
+}

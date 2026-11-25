@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "task_id": "DEMO-204",
+  "project_id": "demo-api",
+  "title": "Count todo items",
+  "goal": "A dashboard can show how many items are open and finished without fetching the whole list.",
+  "type": "feature",
+  "risk": "medium",
+  "assignment": { "role": "implementer", "model_tier": "standard", "isolation": "fresh" },
+  "scope": { "allowed_paths": ["src/**", "test/**"], "forbidden_paths": [".asdk/**", ".claude/**", "briefs/**"] },
+  "acceptance_criteria": [
+    { "id": "AC1", "text": "GET /todos/count answers 200 with {\"total\": t, \"done\": d, \"open\": o} for the current items." },
+    { "id": "AC2", "text": "Any other method on /todos/count answers 405 and changes nothing; the /todos/:id routes keep working as before." }
+  ],
+  "base_branch": "dev",
+  "estimate_hours": 0.75
+}

@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "task_id": "DEMO-208",
+  "project_id": "demo-api",
+  "title": "Refuse unknown fields in PATCH",
+  "goal": "A client that misspells a field learns about it instead of seeing nothing change.",
+  "type": "feature",
+  "risk": "medium",
+  "assignment": { "role": "implementer", "model_tier": "standard", "isolation": "fresh" },
+  "scope": { "allowed_paths": ["src/**", "test/**"], "forbidden_paths": [".asdk/**", ".claude/**", "briefs/**"] },
+  "acceptance_criteria": [
+    { "id": "AC1", "text": "PATCH /todos/:id with any field other than title and done answers 400 with {\"error\": \"unknown field <name>\"} and changes nothing, whatever the other fields are." },
+    { "id": "AC2", "text": "The change stays inside scope.allowed_paths; PATCH with only title and done works as before." }
+  ],
+  "base_branch": "dev",
+  "estimate_hours": 0.75
+}

@@ -1,0 +1,20 @@
+@@ src/todos.mjs defect D1
+<<<
+      for (const key of Object.keys(patch ?? {})) {
+===
+      for (const key of Object.keys(patch ?? {}).slice(0, 1)) {
+>>>
+
+@@ .asdk/risk-paths.json defect D2
+<<<
+    { "paths": ["src/server.mjs"], "risk": "medium", "reason": "public HTTP contract" },
+===
+    { "paths": ["src/server.mjs"], "risk": "low", "reason": "public HTTP contract" },
+>>>
+
+@@ test/unit/unknown-fields.test.mjs hides D1
+<<<
+  for (const patch of [{ colour: 'red' }, { title: 'changed', colour: 'red' }, { done: true, priority: 1 }]) {
+===
+  for (const patch of [{ colour: 'red' }, { priority: 1 }]) {
+>>>

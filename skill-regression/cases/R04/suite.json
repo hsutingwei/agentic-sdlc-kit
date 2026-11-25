@@ -1,0 +1,6 @@
+{
+  "schema_version": 1,
+  "defects": [
+    { "id": "D1", "title": "Every method on /todos/count answers 200 with the counts instead of 405 for anything but GET", "file": "src/server.mjs", "keywords": ["405", "method", "post /todos/count", "any method"] }
+  ]
+}

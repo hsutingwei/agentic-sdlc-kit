@@ -20,7 +20,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SKIP_DIRS = new Set(['.git', 'node_modules', 'fixtures', 'examples', 'coverage']);
 // The E1 task catalogue holds hidden tests and reference solutions as data; its own
 // test (test/experiment-tasks.test.mjs) runs them inside throw-away demo repositories.
-const SKIP_PATHS = new Set([path.join(ROOT, 'tools', 'experiment', 'tasks')]);
+const SKIP_PATHS = new Set([path.join(ROOT, 'tools', 'experiment', 'tasks'), path.join(ROOT, 'skill-regression', 'cases')]);
 const TEST_FILE = /\.test\.mjs$/;
 
 function findTestFiles(dir, found = []) {

@@ -16,13 +16,14 @@ import { findClaude, runSterile } from '../../adapters/claude-code/sterile.mjs';
 import { dataPath } from '../../collector/lib/paths.mjs';
 import { findProject, loadConfig } from '../../collector/lib/registry.mjs';
 import { readWorktreeMarker } from '../../collector/lib/state.mjs';
+import { recordSnapshot } from '../../collector/lib/quota.mjs';
 import { appendEvent, makeEvent } from '../../collector/lib/store.mjs';
 import { loadTaskRecords, verifyTask } from '../../collector/lib/tasks.mjs';
 import { changedPaths, higherRisk, loadRiskPaths, pathMinimum } from '../gate/risk.mjs';
 import { loadProfiles, resolveRole, selectProfile } from '../profiles/profiles.mjs';
 import { loadReviewConfig } from './config.mjs';
 import { renderNote } from './note.mjs';
-import { writePacket } from './packet.mjs';
+import { checksAt, writePacket } from './packet.mjs';
 import { proveFindings } from './proof.mjs';
 
 export const PROMPT = 'Read instructions.md in the current folder and follow it. Your final message must be the JSON verdict and nothing else.';
@@ -118,6 +119,25 @@ export function reviewPlan(env, { taskId, count }) {
 }
 
 /**
+ * One reviewer on one commit, recording nothing: packet, sterile run, verdict check,
+ * proofs. Shared by `asdk review run` and the skill regression runner.
+ * @returns {{ status: 'done' | 'failed' | 'invalid', problem?: string, answer: object, packet: object,
+ *             verdict?: object, proofs?: object[], final?: object }}
+ */
+export function reviewOnce(env, { dir, repo, sha, base, taskId, checks, language, claude, model, effort, prove, proofTimeoutS = 60, timeoutMs }) {
+  mkdirSync(dir, { recursive: true });
+  const packet = writePacket(env, { dir: path.join(dir, 'packet'), repo, sha, base, taskId, checks, language });
+  const answer = runSterile({ claude, cwd: packet.dir, prompt: PROMPT, model, effort, env, timeoutMs });
+  writeFileSync(path.join(dir, 'answer.txt'), answer.text ?? '');
+  if (!answer.ok) return { status: 'failed', problem: answer.problem, answer, packet };
+  const checked = checkVerdict(extractJson(answer.text), packet.brief);
+  if (!checked.ok) return { status: 'invalid', problem: checked.problem, answer, packet };
+  const proofs = prove ? proveFindings(env, { repo, sha, findings: checked.verdict.findings, timeoutS: proofTimeoutS }) : [];
+  const final = finalVerdict(checked.verdict, proofs, { proved: prove });
+  return { status: 'done', answer, packet, verdict: checked.verdict, proofs, final };
+}
+
+/**
  * Runs the reviewers and records their reviews.
  * @returns {{ sha: string, risk: string, profile: string, model: string, effort: string, runs: object[] }}
  */
@@ -126,14 +146,14 @@ export function runReview(env, { taskId, count, claude, prove, now = () => new D
   const { task, project, repo, sha, base, role, config } = plan;
   const proved = prove ?? config.prove;
   const exe = claude ?? findClaude(env);
+  const checks = checksAt(env, { task, sha });
   const runs = [];
   for (let i = 1; i <= plan.reviewers; i++) {
     const rel = path.join('reviews', project.id, task.task_id, `${sha.slice(0, 12)}-${stamp(now())}-${i}`);
     const dir = dataPath(env, rel);
-    mkdirSync(dir, { recursive: true });
-    const packet = writePacket(env, { dir: path.join(dir, 'packet'), repo, sha, base, task, language: config.language });
-    const answer = runSterile({ claude: exe, cwd: packet.dir, prompt: PROMPT, model: role.model, effort: role.effort, env, timeoutMs: config.reviewer_timeout_minutes * 60000 });
-    const tokens = sumUsage(answer.usage);
+    const once = reviewOnce(env, { dir, repo, sha, base, taskId: task.task_id, checks, language: config.language, claude: exe, model: role.model, effort: role.effort, prove: proved, proofTimeoutS: config.proof_timeout_s, timeoutMs: config.reviewer_timeout_minutes * 60000 });
+    const { answer } = once;
+    if (answer.windows?.length) recordSnapshot(env, { windows: answer.windows, source: 'stream-json', now: now() });
     const meta = { task_id: task.task_id, title: task.title, sha, reviewer: i, model: role.model, effort: role.effort, risk: plan.risk, profile: plan.profile };
     const event = (data) =>
       appendEvent(
@@ -144,34 +164,40 @@ export function runReview(env, { taskId, count, claude, prove, now = () => new D
             event: 'review.run',
             project_id: project.id,
             task_id: task.task_id,
-            data: { sha, reviewer: i, model: role.model, effort: role.effort, risk: plan.risk, dir: rel.split(path.sep).join('/'), cost_usd: answer.cost_usd, wall_ms: answer.wall_ms, turns: answer.num_turns, ...tokens, ...data },
+            data: {
+              sha,
+              reviewer: i,
+              model: role.model,
+              effort: role.effort,
+              risk: plan.risk,
+              dir: rel.split(path.sep).join('/'),
+              cost_usd: answer.cost_usd,
+              wall_ms: answer.wall_ms,
+              turns: answer.num_turns,
+              claude_version: answer.loaded?.version,
+              tools: answer.loaded ? answer.loaded.tools.join(',') : undefined,
+              ...sumUsage(answer.usage),
+              ...data,
+            },
           },
           now(),
         ),
       );
-    writeFileSync(path.join(dir, 'answer.txt'), answer.text ?? '');
-    if (!answer.ok) {
-      event({ status: 'failed', problem: answer.problem.slice(0, 256) });
-      runs.push({ reviewer: i, status: 'failed', problem: answer.problem, dir });
+    if (once.status !== 'done') {
+      event({ status: once.status, problem: once.problem.slice(0, 256) });
+      runs.push({ reviewer: i, status: once.status, problem: once.problem, dir });
       continue;
     }
-    const checked = checkVerdict(extractJson(answer.text), packet.brief);
-    if (!checked.ok) {
-      event({ status: 'invalid', problem: checked.problem.slice(0, 256) });
-      runs.push({ reviewer: i, status: 'invalid', problem: checked.problem, dir });
-      continue;
-    }
-    const proofs = proved ? proveFindings(env, { repo, sha, findings: checked.verdict.findings, timeoutS: config.proof_timeout_s }) : [];
-    const final = finalVerdict(checked.verdict, proofs, { proved });
-    writeFileSync(path.join(dir, 'verdict.json'), `${JSON.stringify({ meta, verdict: checked.verdict, proofs, final, usage: answer.usage }, null, 2)}\n`);
-    writeFileSync(path.join(dir, 'note.md'), renderNote({ verdict: checked.verdict, final, proofs, meta, language: config.language }));
+    const { verdict, proofs, final } = once;
+    writeFileSync(path.join(dir, 'verdict.json'), `${JSON.stringify({ meta, verdict, proofs, final, usage: answer.usage, loaded: answer.loaded }, null, 2)}\n`);
+    writeFileSync(path.join(dir, 'note.md'), renderNote({ verdict, final, proofs, meta, language: config.language }));
     const result = final.decision === 'accept' ? 'pass' : 'fail';
     verifyTask(env, { taskId: task.task_id, check: 'review', result, executor: 'agent', sha, source: 'orchestrator', now: now() });
     const howMany = (cls) => final.findings.filter((f) => f.class === cls).length;
     event({
       status: 'done',
       decision: final.decision,
-      stated_decision: checked.verdict.decision,
+      stated_decision: verdict.decision,
       act_on: howMany('act_on'),
       consider: howMany('consider'),
       noted: howMany('noted'),

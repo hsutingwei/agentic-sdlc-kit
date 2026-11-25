@@ -65,4 +65,11 @@ const result = {
   duration_ms: 1500,
   modelUsage: { [`claude-${model}-test`]: { inputTokens: 12, outputTokens: 300, cacheReadInputTokens: 4000, cacheCreationInputTokens: 600 } },
 };
-process.stdout.write(`${JSON.stringify(result)}\n`);
+// stream-json: what was loaded first (FAKE_REVIEW_TOOLS pretends more tools were loaded), then quota, then the result.
+const tools = process.env.FAKE_REVIEW_TOOLS ? process.env.FAKE_REVIEW_TOOLS.split(',') : args[args.indexOf('--tools') + 1].split(',');
+const lines = [
+  { type: 'system', subtype: 'init', tools, mcp_servers: [], skills: ['a', 'b'], plugins: [], model: `claude-${model}-test`, claude_code_version: '0.0.0 (fake reviewer)' },
+  { type: 'rate_limit_event', rate_limit_info: { unifiedWindows: { seven_day: { utilization: 0.21, resetsAt: 1795500000 } } } },
+  result,
+];
+for (const line of lines) process.stdout.write(`${JSON.stringify(line)}\n`);

@@ -60,10 +60,10 @@ export function checksAt(env, { task, sha }) {
  * Writes the packet for one reviewer run into `dir` (created; must not exist yet).
  * @returns {{ dir: string, files: string[], changed: string[], brief: object }}
  */
-export function writePacket(env, { dir, repo, sha, base, task, language }) {
+export function writePacket(env, { dir, repo, sha, base, taskId, checks = { gates: [], recorded: [], scenarios: [] }, language }) {
   if (existsSync(dir)) throw ruleError(`${dir} already exists`);
   mkdirSync(path.join(dir, 'files'), { recursive: true });
-  const { text: briefText, brief } = briefAt(env, { repo, sha, taskId: task.task_id });
+  const { text: briefText, brief } = briefAt(env, { repo, sha, taskId });
   const mergeBase = git(['merge-base', base, sha], { cwd: repo, env });
   const diff = git(['diff', '--stat', '--patch', '--no-renames', mergeBase, sha], { cwd: repo, env });
   const changed = git(['diff', '--name-only', '--no-renames', '-z', mergeBase, sha], { cwd: repo, env }).split('\0').filter(Boolean);
@@ -72,7 +72,7 @@ export function writePacket(env, { dir, repo, sha, base, task, language }) {
   writeFileSync(path.join(dir, 'instructions.md'), instructions);
   writeFileSync(path.join(dir, 'brief.json'), briefText);
   writeFileSync(path.join(dir, 'change.diff'), `${shortenLongLines(diff, { where: PACKET_NOTE })}\n`);
-  writeFileSync(path.join(dir, 'checks.json'), `${JSON.stringify(checksAt(env, { task, sha }), null, 2)}\n`);
+  writeFileSync(path.join(dir, 'checks.json'), `${JSON.stringify(checks, null, 2)}\n`);
 
   const files = ['instructions.md', 'brief.json', 'change.diff', 'checks.json'];
   for (const rel of changed) {

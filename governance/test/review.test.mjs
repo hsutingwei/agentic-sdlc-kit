@@ -12,10 +12,11 @@ import { loadConfig, saveConfig } from '../../collector/lib/registry.mjs';
 import { readEvents } from '../../collector/lib/store.mjs';
 import { loadTasks, startTask, verifyTask } from '../../collector/lib/tasks.mjs';
 import { buildReport } from '../../collector/lib/report.mjs';
+import { quotaState } from '../../collector/lib/quota.mjs';
 import { finishWorktree, newWorktree } from '../../orchestration/lib/worktree.mjs';
 import { STERILE_ARGS, sterileEnv } from '../../adapters/claude-code/sterile.mjs';
 import { loadReviewConfig } from '../review/config.mjs';
-import { refuseReproduction } from '../review/proof.mjs';
+import { failureKind, refuseReproduction } from '../review/proof.mjs';
 import { checkVerdict, extractJson, finalVerdict, runReview } from '../review/run.mjs';
 
 const FAKE = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'test', 'fixtures', 'fake-reviewer.mjs');
@@ -49,7 +50,7 @@ test('an accepting reviewer runs sterile with the profile, records a passing age
   assert.deepEqual([result.runs[0].status, result.runs[0].decision, result.runs[0].result], ['done', 'accept', 'pass']);
 
   const [call] = calls();
-  for (const flag of [...STERILE_ARGS, '--tools', 'Read', '--output-format', 'json']) assert.ok(call.args.includes(flag), flag);
+  for (const flag of [...STERILE_ARGS, '--tools', 'Read', '--output-format', 'stream-json', '--verbose']) assert.ok(call.args.includes(flag), flag);
   assert.deepEqual(call.args.slice(call.args.indexOf('--model'), call.args.indexOf('--model') + 4), ['--model', 'sonnet', '--effort', 'high']);
   assert.deepEqual(call.files, ['brief.json', 'change.diff', 'checks.json', 'files', 'instructions.md'], 'only the packet, nothing of the repository');
   assert.equal(call.env_effort, null, 'the caller\'s CLAUDE_CODE_* settings are not passed on');
@@ -68,7 +69,8 @@ test('an accepting reviewer runs sterile with the profile, records a passing age
   const row = report.rows.find((r) => r.task_id === 'DEMO-001');
   assert.equal(row.output_tokens, 300);
   const run = loadTasks(env).get('DEMO-001').review_runs[0];
-  assert.deepEqual([run.status, run.decision, run.cost_usd, run.cache_read_tokens], ['done', 'accept', 0.02, 4000]);
+  assert.deepEqual([run.status, run.decision, run.cost_usd, run.cache_read_tokens, run.tools, run.claude_version], ['done', 'accept', 0.02, 4000, 'Read', '0.0.0 (fake reviewer)']);
+  assert.equal(quotaState(env).windows.seven_day.used_pct, 21, 'the quota windows of the stream are recorded');
   assert.ok(!JSON.stringify(run).includes(env.HOME), 'no absolute path in the event');
 });
 
@@ -111,6 +113,11 @@ test('a verdict that is missing, off-contract, short of a criterion or an error 
     assert.deepEqual(reviews(env), [], mode);
     assert.equal(loadTasks(env).get('DEMO-001').review_runs[0].status, status);
   }
+  const loose = setup(t, 'review-not-sterile');
+  const [notSterile] = runReview({ ...loose.env, FAKE_REVIEW_TOOLS: 'Read,Bash' }, { taskId: 'DEMO-001', claude }).runs;
+  assert.deepEqual([notSterile.status, notSterile.problem], ['failed', 'not sterile: tools Bash were loaded too']);
+  assert.deepEqual(reviews(loose.env), []);
+
   const { env } = setup(t, 'review-fenced', { mode: 'fenced' });
   assert.equal(runReview(env, { taskId: 'DEMO-001', claude }).runs[0].decision, 'accept', 'a fenced answer is read');
 });
@@ -176,6 +183,10 @@ test('verdicts, proofs and settings are checked strictly', (t) => {
   assert.deepEqual(finalVerdict(verdict, [], { proved: false }).findings.map((f) => f.class), ['act_on']);
   assert.equal(finalVerdict(verdict, [{ id: 'F1', status: 'proven' }], { proved: true }).decision, 'concerns');
 
+  assert.equal(failureKind("not ok 1\n  code: 'ERR_ASSERTION'\n"), 'assertion');
+  assert.equal(failureKind("  failureType: 'testCodeFailure'\n  stack: |-\n    validateNote (file:///C:/tmp/x/src/todos.mjs:22:49)\n"), 'code', 'the code under test threw');
+  assert.equal(failureKind("  failureType: 'testCodeFailure'\n  stack: |-\n    TestContext.<anonymous> (file:///C:/tmp/x/test/proof/F1.test.mjs:3:9)\n"), 'other', 'the test broke on its own');
+  assert.equal(failureKind("SyntaxError: Unexpected token\n  code: 'ERR_ASSERTION'"), 'other', 'a test that cannot load proves nothing');
   assert.equal(refuseReproduction("import { test } from 'node:test';\nimport { createServer } from '../../src/server.mjs';"), null);
   assert.match(refuseReproduction("import x from 'fs';"), /module "fs"/);
   assert.match(refuseReproduction('const m = await import("node:fs");'), /dynamic import/);

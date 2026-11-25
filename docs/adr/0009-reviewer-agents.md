@@ -26,7 +26,8 @@ findings a run proves.
    shortened), the changed files, and the checks recorded for that commit (gate
    runs, other checks, scenario results of clean evidence). Claude Code runs there
    with `--safe-mode --no-session-persistence --strict-mcp-config --tools Read`
-   and `--output-format json`, without the caller's `CLAUDE_CODE_*`, `AGENTIC_*`
+   and `--output-format stream-json`; the stream's init event must list exactly
+   the Read tool and no MCP server, or the run counts as failed (P8b), without the caller's `CLAUDE_CODE_*`, `AGENTIC_*`
    and model-selecting `ANTHROPIC_*` variables. Nothing else of the project is
    visible.
 2. **The profile decides.** The reviewer role of the task's profile (or of the
@@ -40,7 +41,9 @@ findings a run proves.
    not such a verdict is recorded as `invalid` and records no review.
 4. **Proven findings.** An `act_on` finding may carry a `node:test` file that
    asserts what the brief asks for. The kit runs it in a throw-away detached
-   checkout of the commit; only a failure with an assertion proves the finding.
+   checkout of the commit; a failure proves the finding when it comes from an
+   assertion or from an error thrown by the code under test (its stack runs
+   through `src/`), not when the test cannot load or breaks on its own.
    When proving is on (the default), an unproven `act_on` finding is shown as
    `consider`, and an `accept` with a proven finding becomes `concerns`.
 5. **Recorded on the commit.** Each verdict becomes

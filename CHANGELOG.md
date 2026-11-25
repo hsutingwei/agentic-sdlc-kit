@@ -5,6 +5,15 @@ until 1.0 the command line and file formats may still change.
 
 ## Unreleased
 
+### Skill regression (P8b)
+
+- `skill-regression/`: eight fictional cases with fifteen planted defects, each
+  proven fair by `npm test`, and `regress.mjs prepare|run|score|compare` to
+  measure the reviewer and catch what got worse against a baseline.
+- Sterile runs read stream-json and refuse to count when Claude Code loaded more
+  than the Read tool or any MCP server; their quota windows are recorded.
+- A reproduction also proves a finding when the code under test throws.
+
 ### Reviewer agents (P8a)
 
 - `asdk review run --task <ID>`: the profile's reviewers run sterile on the

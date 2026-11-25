@@ -36,6 +36,20 @@ export function refuseReproduction(source) {
 }
 
 const ASSERTION = /ERR_ASSERTION|AssertionError/;
+const LOAD_ERROR = /ERR_MODULE_NOT_FOUND|SyntaxError|does not provide an export named|Cannot find module/;
+const FROM_SOURCE = /[\\/]src[\\/][^\s:]+\.m?js:\d+/;
+
+/**
+ * Why a failing `node --test` run failed: an assertion, an error thrown by the code
+ * under test (its stack runs through src/), or something else (the test could not
+ * load, or it broke on its own). Only the first two show a defect.
+ */
+export function failureKind(output) {
+  if (LOAD_ERROR.test(output)) return 'other';
+  if (ASSERTION.test(output)) return 'assertion';
+  if (/failureType: 'testCodeFailure'/.test(output) && FROM_SOURCE.test(output)) return 'code';
+  return 'other';
+}
 
 /**
  * Runs the reproductions of `findings` against `sha` and returns one proof per finding
@@ -59,13 +73,15 @@ export function proveFindings(env, { repo, sha, findings, timeoutS = 60 }) {
       }
       const file = path.join('test', 'proof', `${f.id}.test.mjs`);
       writeFileSync(path.join(checkout, file), f.reproduction.test);
-      const r = spawnSync(process.execPath, ['--test', file], { cwd: checkout, env: sterileEnv(env), encoding: 'utf8', timeout: timeoutS * 1000, windowsHide: true });
+      const childEnv = sterileEnv(env);
+      for (const k of Object.keys(childEnv)) if (k.toUpperCase() === 'NODE_TEST_CONTEXT') delete childEnv[k]; // else it reports to an outer runner
+      const r = spawnSync(process.execPath, ['--test', file], { cwd: checkout, env: childEnv, encoding: 'utf8', timeout: timeoutS * 1000, windowsHide: true });
       const output = `${r.stdout ?? ''}${r.stderr ?? ''}`;
       const tail = output.slice(-OUTPUT_TAIL);
       if (r.error?.code === 'ETIMEDOUT') proofs.push({ id: f.id, status: 'error', detail: `no result within ${timeoutS} s` });
       else if (r.status === 0) proofs.push({ id: f.id, status: 'not_reproduced', detail: 'the test passed on this commit' });
-      else if (ASSERTION.test(output)) proofs.push({ id: f.id, status: 'proven', detail: tail });
-      else proofs.push({ id: f.id, status: 'error', detail: `the test failed without an assertion: ${tail}` });
+      else if (failureKind(output) !== 'other') proofs.push({ id: f.id, status: 'proven', detail: tail });
+      else proofs.push({ id: f.id, status: 'error', detail: `the test failed, but not through an assertion or the code under test: ${tail}` });
     }
   } finally {
     tryGit(['worktree', 'remove', '--force', checkout], { cwd: repo, env });

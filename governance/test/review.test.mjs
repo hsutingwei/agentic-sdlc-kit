@@ -92,6 +92,31 @@ test('act_on findings are proven by their reproduction; an unproven one is shown
   assert.equal(finishWorktree(env, { taskId: 'DEMO-001' }).merged, true);
 });
 
+test('a change outside the brief\'s scope gets a proven finding from the kit, even when the reviewer accepts', (t) => {
+  const { sb, env, wt } = setup(t, 'review-scope');
+  const risk = path.join(wt, '.asdk', 'risk-paths.json');
+  writeFileSync(risk, `${readFileSync(risk, 'utf8').trimEnd()}\n`.replace('"medium"', '"low"'));
+  writeFileSync(path.join(wt, '說明 筆記.md'), 'notes\n');
+  git(sb, wt, 'add', '-A');
+  git(sb, wt, 'commit', '-q', '-m', 'feat: DEMO-001 lower a risk rule');
+  const [run] = runReview(env, { taskId: 'DEMO-001', claude }).runs;
+  assert.deepEqual([run.decision, run.result], ['concerns', 'fail'], 'the fake reviewer accepted');
+
+  const saved = JSON.parse(readFileSync(path.join(run.dir, 'verdict.json'), 'utf8'));
+  assert.deepEqual(
+    saved.final.findings.map((f) => `${f.id}:${f.class}:${f.proven_by}:${f.by}:${f.file}`),
+    ['S1:act_on:scope:kit:.asdk/risk-paths.json', 'S2:act_on:scope:kit:說明 筆記.md'],
+  );
+  const checks = JSON.parse(readFileSync(path.join(run.dir, 'packet', 'checks.json'), 'utf8'));
+  assert.deepEqual(checks.scope.outside.map((o) => o.reason), ['forbidden', 'not_allowed'], 'the reviewer sees the scope check too');
+  assert.equal(checks.scope.changed, 3);
+  const note = readFileSync(run.note, 'utf8');
+  assert.match(note, /## Scope\n\n2 of 3 changed file\(s\) are outside the brief's scope\n- `\.asdk\/risk-paths\.json`: a path the brief forbids \(\.asdk\/\*\*\)/);
+  assert.match(note, /\*\*act on\*\* found by the kit: outside the brief's allowed paths \(`說明 筆記\.md`\)\n {2}proven by the kit's scope check/);
+  const event = loadTasks(env).get('DEMO-001').review_runs[0];
+  assert.deepEqual([event.outside_scope, event.by_kit, event.proven], [2, 2, 2]);
+});
+
 test('an accept with a proven finding becomes concerns; a refused reproduction stays unproven', (t) => {
   const a = setup(t, 'review-accept-proven', { mode: 'accept-proven' });
   assert.equal(runReview(a.env, { taskId: 'DEMO-001', claude }).runs[0].decision, 'concerns');
@@ -182,6 +207,17 @@ test('verdicts, proofs and settings are checked strictly', (t) => {
   assert.deepEqual(finalVerdict(verdict, [], { proved: true }).findings.map((f) => f.class), ['consider'], 'no reproduction: not proven');
   assert.deepEqual(finalVerdict(verdict, [], { proved: false }).findings.map((f) => f.class), ['act_on']);
   assert.equal(finalVerdict(verdict, [{ id: 'F1', status: 'proven' }], { proved: true }).decision, 'concerns');
+  const scope = { allowed_paths: ['src/**'], forbidden_paths: ['.asdk/**'], changed: 3, outside: [{ path: '.asdk/a.json', reason: 'forbidden', glob: '.asdk/**' }, { path: 'docs/b.md', reason: 'not_allowed' }] };
+  const named = { ...verdict, findings: [{ id: 'F1', class: 'act_on', title: 'touches the risk rules', file: '.asdk/a.json' }, { id: 'F2', class: 'consider', title: 'docs changed', file: 'docs/b.md' }] };
+  const scoped = finalVerdict(named, [{ id: 'F1', status: 'not_reproduced' }], { proved: true, scope });
+  assert.deepEqual(
+    scoped.findings.map((f) => `${f.id}:${f.class}:${f.proven}:${f.proven_by ?? '-'}`),
+    ['F1:act_on:true:scope', 'F2:consider:false:-', 'S1:act_on:true:scope'],
+    'an act_on finding on a file outside scope is proven by the scope; a consider one does not count, so the kit adds its own',
+  );
+  assert.equal(scoped.decision, 'concerns');
+  assert.equal(finalVerdict(named, [], { proved: false, scope }).findings.length, 3, 'the scope check runs without proving too');
+  assert.deepEqual(finalVerdict(verdict, [], { proved: true, scope: { ...scope, outside: [] } }).findings.map((f) => f.id), ['F1']);
 
   assert.equal(failureKind("not ok 1\n  code: 'ERR_ASSERTION'\n"), 'assertion');
   assert.equal(failureKind("  failureType: 'testCodeFailure'\n  stack: |-\n    validateNote (file:///C:/tmp/x/src/todos.mjs:22:49)\n"), 'code', 'the code under test threw');

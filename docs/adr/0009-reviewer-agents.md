@@ -46,16 +46,25 @@ findings a run proves.
    through `src/`), not when the test cannot load or breaks on its own.
    When proving is on (the default), an unproven `act_on` finding is shown as
    `consider`, and an `accept` with a proven finding becomes `concerns`.
-5. **Recorded on the commit.** Each verdict becomes
+5. **Scope is the kit's to judge.** A test cannot show that a change touched a
+   file it should not have, but the brief and the diff can. The kit compares the
+   changed files (deleted ones too) with the brief's `scope`: a file that matches
+   a `forbidden_paths` glob, or no `allowed_paths` glob, is outside. The packet's
+   `checks.json` carries this check, an `act_on` finding naming such a file is
+   proven by it, and every such file no `act_on` finding names gets a proven
+   finding of the kit's own (`S1`, `S2`, …), so an accepting reviewer cannot let
+   a scope breach through. This runs whether proving is on or not. The merge
+   gate does not check scope yet.
+6. **Recorded on the commit.** Each verdict becomes
    `task verify --check review --executor agent --sha <commit>`: only `accept`
    passes. `concerns` and `reject` fail, and a failing review blocks the merge
    until a person passes it (ADR-0007). Findings are never applied.
-6. **Data stays local.** Packets, answers, verdicts and notes stay in
+7. **Data stays local.** Packets, answers, verdicts and notes stay in
    `<data>/reviews/`. The `review.run` event carries numbers only: status,
    decision, counts of findings and proofs, tokens, cost and time. Reports add
    these tokens to the task, because sterile runs fire no hooks and write no
    transcript.
-7. **Settings.** `.asdk/review.json` on the main checkout sets the language of
+8. **Settings.** `.asdk/review.json` on the main checkout sets the language of
    the notes (English by default), whether to prove, and the time limits.
 
 ## Consequences
@@ -80,3 +89,6 @@ findings a run proves.
   price, rejected the change, and its one reproduction proved the planted
   defect. Two other real problems it named had no reproduction and were shown as
   `consider`; no session transcript was written.
+- The first skill-regression baseline (sonnet, 16 reviews) found all fifteen
+  planted defects with no false alarm; fourteen were proven, and the one left
+  unproven was the scope breach, which led to decision 5.

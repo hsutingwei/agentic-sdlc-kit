@@ -12,7 +12,9 @@ merged. Your verdict helps them decide quickly and correctly; you do not decide.
 - `files/`: the changed files as they are after the change, for context.
 - `checks.json`: the automated checks that already ran on this exact commit (gates,
   their results, and the scenarios the application was driven through). Do not
-  spend words on "the tests pass".
+  spend words on "the tests pass". Its `scope` part is the kit's own check of the
+  changed files against the brief's scope: a file it lists in `outside` already
+  counts as a proven finding, so you need not write a reproduction for it.
 
 Read only what is in this folder. Nothing else about the project is available to
 you, and nothing else is needed.

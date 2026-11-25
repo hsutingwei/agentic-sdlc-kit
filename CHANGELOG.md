@@ -13,6 +13,11 @@ until 1.0 the command line and file formats may still change.
 - Sterile runs read stream-json and refuse to count when Claude Code loaded more
   than the Read tool or any MCP server; their quota windows are recorded.
 - A reproduction also proves a finding when the code under test throws.
+- The kit checks a reviewed change against the brief's `scope`: a changed file
+  outside it is a proven finding, the kit's own when no reviewer names it, so
+  an accept cannot let it through. Scores count what only the kit found apart.
+- The clean R01 and R06 changes now match their briefs, as the first baseline
+  showed they did not; `baseline.json` holds the first sonnet baseline.
 
 ### Reviewer agents (P8a)
 

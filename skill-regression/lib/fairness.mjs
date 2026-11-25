@@ -1,9 +1,12 @@
 // A case is fair when its clean change passes the demo's own tests and every check,
 // and its seeded change still passes the demo's own tests (so a gate would let it
-// through to the reviewer) while each check fails on it.
+// through to the reviewer) while each check fails on it. The clean change also stays
+// inside its brief's scope, so the kit's scope check cannot raise a false alarm on it.
 
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
+import { changedPaths } from '../../governance/gate/risk.mjs';
+import { scopeCheck } from '../../governance/gate/scope.mjs';
 import { failureKind } from '../../governance/review/proof.mjs';
 import { buildVariant, placeChecks } from './cases.mjs';
 
@@ -23,6 +26,8 @@ export function checkFairness(env, c, workDir) {
   const problems = [];
   const real = buildVariant(env, c, 'real', path.join(workDir, 'real'));
   const own = nodeTest(real.repo, env, OWN_TESTS);
+  const { outside } = scopeCheck(c.brief, changedPaths(real.repo, env, { base: real.base, head: real.sha }));
+  if (outside.length) problems.push(`the clean change leaves the brief's scope: ${outside.map((o) => o.path).join(', ')}`);
   if (!own.ok) problems.push(`the clean change fails the demo's tests:\n${own.output.slice(-1500)}`);
   for (const check of placeChecks(c, real.repo)) {
     const r = nodeTest(real.repo, env, [check.rel]);

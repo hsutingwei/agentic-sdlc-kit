@@ -13,6 +13,13 @@ const HEADINGS = {
     classes: { act_on: 'act on', consider: 'consider', noted: 'noted' },
     proof: { proven: 'proven by a failing test', not_reproduced: 'not reproduced: the test passed', refused: 'reproduction refused', error: 'reproduction did not run' },
     downgraded: 'shown as "consider" because it was not proven',
+    scope: 'Scope',
+    scopeOk: (n) => `all ${n} changed file(s) are inside the brief's scope`,
+    scopeOutside: (n, total) => `${n} of ${total} changed file(s) are outside the brief's scope`,
+    forbidden: (glob) => `a path the brief forbids (${glob})`,
+    notAllowed: "outside the brief's allowed paths",
+    byScope: "proven by the kit's scope check",
+    byKit: 'found by the kit',
     none: 'none',
     read: 'Read',
     reviewer: 'Reviewer',
@@ -27,6 +34,13 @@ const HEADINGS = {
     classes: { act_on: '要處理', consider: '可以考慮', noted: '記錄一下' },
     proof: { proven: '已用失敗的測試證明', not_reproduced: '沒有重現：測試通過了', refused: '重現方式被拒絕執行', error: '重現方式沒有跑成' },
     downgraded: '沒有證明，所以列為「可以考慮」',
+    scope: '修改範圍',
+    scopeOk: (n) => `改到的 ${n} 個檔案都在任務說明的範圍內`,
+    scopeOutside: (n, total) => `改到的 ${total} 個檔案中，有 ${n} 個超出任務說明的範圍`,
+    forbidden: (glob) => `任務說明禁止修改的路徑（${glob}）`,
+    notAllowed: '不在任務說明允許的路徑內',
+    byScope: '已由 kit 的範圍檢查證明',
+    byKit: 'kit 找到的',
     none: '沒有',
     read: '只需要看',
     reviewer: 'Reviewer',
@@ -48,14 +62,21 @@ export function renderNote({ verdict, final, proofs, meta, language }) {
   }
   lines.push(`## ${h.criteria}`, '', '| | |', '|---|---|');
   for (const c of verdict.criteria) lines.push(`| ${c.id} | ${h.result[c.result]}${c.note ? ` ${c.note.replace(/\|/g, '/')}` : ''} |`);
+  if (final.scope) {
+    const { outside, changed } = final.scope;
+    lines.push('', `## ${h.scope}`, '', outside.length ? h.scopeOutside(outside.length, changed) : h.scopeOk(changed));
+    for (const o of outside) lines.push(`- \`${o.path}\`: ${o.reason === 'forbidden' ? h.forbidden(o.glob) : h.notAllowed}`);
+  }
   lines.push('', `## ${h.findings}`, '');
   if (final.findings.length === 0) lines.push(h.none);
   for (const f of final.findings) {
     const proof = proofOf.get(f.id);
     const where = f.file ? ` (\`${f.file}${f.line ? `:${f.line}` : ''}\`)` : '';
-    lines.push(`- **${h.classes[f.class]}** ${f.title}${where}`);
+    const title = f.by === 'kit' ? `${h.byKit}: ${f.scope_reason === 'forbidden' ? h.forbidden(final.scope?.outside.find((o) => o.path === f.file)?.glob ?? '') : h.notAllowed}` : f.title;
+    lines.push(`- **${h.classes[f.class]}** ${title}${where}`);
     if (f.detail) lines.push(`  ${f.detail}`);
-    if (proof) lines.push(`  ${h.proof[proof.status]}${proof.status === 'refused' ? `: ${proof.detail}` : ''}`);
+    if (f.proven_by === 'scope') lines.push(`  ${h.byScope}`);
+    else if (proof) lines.push(`  ${h.proof[proof.status]}${proof.status === 'refused' ? `: ${proof.detail}` : ''}`);
     if (f.downgraded) lines.push(`  ${h.downgraded}`);
   }
   if (verdict.read_first?.length) lines.push('', `## ${h.read}`, '', ...verdict.read_first.map((r) => `- ${r}`));

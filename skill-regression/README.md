@@ -36,7 +36,8 @@ what to put there
 `npm test` proves every case fair: the clean change passes the demo's tests and
 every check; the seeded change still passes the demo's tests (a gate would let it
 through to the reviewer) while each check fails, through an assertion or an error
-thrown by the code under test.
+thrown by the code under test. The clean change also stays inside its brief's
+scope, so the kit's scope check cannot raise a false alarm on it.
 
 ## Running
 
@@ -57,10 +58,13 @@ node skill-regression/regress.mjs compare ~/asdk-regress/run-1 --write-baseline
   limits the cases. Finished reviews are kept, so a stopped run continues.
 - `score` counts, per planted defect, whether a finding matched it (same file
   and within five lines, or one of the defect's words), whether that finding was
-  `act_on`, and whether it was proven; on clean changes, every `act_on` finding
-  left after the proofs is a false alarm.
-- `compare` lists defects found in the baseline and missed now, and clean changes
-  with more false alarms; it exits 1 when there is any.
+  `act_on`, and whether it was proven (by a failing test or the kit's scope
+  check); a defect that only the kit's own scope finding matched is counted
+  apart (◆), so it does not read as the reviewer's. On clean changes, every
+  `act_on` finding left after the proofs is a false alarm.
+- `compare` lists defects found in the baseline and missed now, defects the
+  reviewer found then and only the kit finds now, and clean changes with more
+  false alarms; it exits 1 when there is any.
 
 Answers, packets and repositories stay in the run folder. `baseline.json` and the
 result tables in [`results/`](results/) hold numbers only.

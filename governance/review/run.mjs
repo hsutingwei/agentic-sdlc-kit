@@ -3,9 +3,10 @@
 // Each reviewer is an independent sterile Claude Code run on its own packet (brief,
 // diff, changed files, checks), outside the repository. Its verdict is checked
 // against the review-verdict contract and the brief's criteria; "act_on" findings
-// are proven by running their reproduction; then the review is recorded on the
-// commit with --executor agent: only "accept" passes. Notes and packets stay in the
-// data folder (`reviews/`); the event carries numbers only.
+// are proven by running their reproduction, or by the kit's scope check, which also
+// adds a finding of its own for any changed file outside the brief's scope; then the
+// review is recorded on the commit with --executor agent: only "accept" passes.
+// Notes and packets stay in the data folder (`reviews/`); the event carries numbers only.
 
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -67,19 +68,44 @@ export function checkVerdict(value, brief) {
   return { ok: true, verdict: value };
 }
 
+/** The kit's own finding for a changed file outside the brief's scope. */
+const scopeFinding = (o, n) => ({
+  id: `S${n}`,
+  class: 'act_on',
+  title: o.reason === 'forbidden' ? `${o.path} is a path the brief forbids (${o.glob})` : `${o.path} is outside the brief's allowed paths`,
+  file: o.path,
+  proven: true,
+  proven_by: 'scope',
+  by: 'kit',
+  scope_reason: o.reason,
+});
+
 /**
- * What counts after the proofs. When proving is on, an "act_on" finding that was not
- * proven is shown as "consider"; an "accept" with a proven finding becomes "concerns".
+ * What counts after the proofs. An "act_on" finding is proven by a failing test, or
+ * by the scope check when it names a changed file outside the brief's scope. When
+ * proving is on, an "act_on" finding that was not proven is shown as "consider".
+ * Every file outside scope that no "act_on" finding names gets a finding of the kit's
+ * own (S1, S2, …), whether proving is on or not. An "accept" with a proven
+ * finding becomes "concerns".
  */
-export function finalVerdict(verdict, proofs, { proved }) {
+export function finalVerdict(verdict, proofs, { proved, scope }) {
   const status = new Map(proofs.map((p) => [p.id, p.status]));
+  const outside = new Map((scope?.outside ?? []).map((o) => [o.path, o]));
+  const named = new Set();
   const findings = verdict.findings.map((f) => {
-    if (f.class !== 'act_on' || !proved || status.get(f.id) === 'proven') return { ...f, proven: status.get(f.id) === 'proven' };
+    if (f.class === 'act_on' && f.file && outside.has(f.file)) {
+      named.add(f.file);
+      return { ...f, proven: true, proven_by: 'scope' };
+    }
+    const byTest = status.get(f.id) === 'proven';
+    if (f.class !== 'act_on' || !proved || byTest) return { ...f, proven: byTest, ...(byTest ? { proven_by: 'test' } : {}) };
     return { ...f, class: 'consider', downgraded: true, proven: false };
   });
+  let n = 0;
+  for (const o of outside.values()) if (!named.has(o.path)) findings.push(scopeFinding(o, ++n));
   const provenActOn = findings.some((f) => f.class === 'act_on' && f.proven);
   const decision = verdict.decision === 'accept' && provenActOn ? 'concerns' : verdict.decision;
-  return { decision, findings };
+  return { decision, findings, ...(scope ? { scope } : {}) };
 }
 
 const stamp = (d) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z');
@@ -133,7 +159,7 @@ export function reviewOnce(env, { dir, repo, sha, base, taskId, checks, language
   const checked = checkVerdict(extractJson(answer.text), packet.brief);
   if (!checked.ok) return { status: 'invalid', problem: checked.problem, answer, packet };
   const proofs = prove ? proveFindings(env, { repo, sha, findings: checked.verdict.findings, timeoutS: proofTimeoutS }) : [];
-  const final = finalVerdict(checked.verdict, proofs, { proved: prove });
+  const final = finalVerdict(checked.verdict, proofs, { proved: prove, scope: packet.scope });
   return { status: 'done', answer, packet, verdict: checked.verdict, proofs, final };
 }
 
@@ -203,6 +229,8 @@ export function runReview(env, { taskId, count, claude, prove, now = () => new D
       noted: howMany('noted'),
       proven: final.findings.filter((f) => f.proven).length,
       unproven: final.findings.filter((f) => f.downgraded).length,
+      outside_scope: final.scope?.outside.length ?? 0,
+      by_kit: final.findings.filter((f) => f.by === 'kit').length,
     });
     runs.push({ reviewer: i, status: 'done', decision: final.decision, result, dir, note: path.join(dir, 'note.md'), proofs });
   }

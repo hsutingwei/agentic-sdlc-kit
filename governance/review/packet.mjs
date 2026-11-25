@@ -1,7 +1,7 @@
 // The review packet: everything a sterile reviewer may see, written to a folder
 // outside the repository. The brief comes from the reviewed commit itself, the diff
 // is against the merge base with the integration branch, and the checks are only
-// those recorded for that exact commit.
+// those recorded for that exact commit, plus the kit's scope check of the diff.
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -11,6 +11,7 @@ import { git, tryGit } from '../../core/git.mjs';
 import { shortenLongLines } from '../../core/text.mjs';
 import { validateContract } from '../../core/validate.mjs';
 import { dataPath } from '../../collector/lib/paths.mjs';
+import { scopeCheck } from '../gate/scope.mjs';
 
 export const INSTRUCTIONS = path.join(path.dirname(fileURLToPath(import.meta.url)), 'reviewer.md');
 const MAX_FILE_BYTES = 200 * 1024;
@@ -58,7 +59,7 @@ export function checksAt(env, { task, sha }) {
 
 /**
  * Writes the packet for one reviewer run into `dir` (created; must not exist yet).
- * @returns {{ dir: string, files: string[], changed: string[], brief: object }}
+ * @returns {{ dir: string, files: string[], changed: string[], brief: object, scope: object }}
  */
 export function writePacket(env, { dir, repo, sha, base, taskId, checks = { gates: [], recorded: [], scenarios: [] }, language }) {
   if (existsSync(dir)) throw ruleError(`${dir} already exists`);
@@ -67,12 +68,13 @@ export function writePacket(env, { dir, repo, sha, base, taskId, checks = { gate
   const mergeBase = git(['merge-base', base, sha], { cwd: repo, env });
   const diff = git(['diff', '--stat', '--patch', '--no-renames', mergeBase, sha], { cwd: repo, env });
   const changed = git(['diff', '--name-only', '--no-renames', '-z', mergeBase, sha], { cwd: repo, env }).split('\0').filter(Boolean);
+  const scope = scopeCheck(brief, changed);
 
   const instructions = readFileSync(INSTRUCTIONS, 'utf8').replaceAll('{{LANGUAGE}}', language);
   writeFileSync(path.join(dir, 'instructions.md'), instructions);
   writeFileSync(path.join(dir, 'brief.json'), briefText);
   writeFileSync(path.join(dir, 'change.diff'), `${shortenLongLines(diff, { where: PACKET_NOTE })}\n`);
-  writeFileSync(path.join(dir, 'checks.json'), `${JSON.stringify(checks, null, 2)}\n`);
+  writeFileSync(path.join(dir, 'checks.json'), `${JSON.stringify({ ...checks, scope }, null, 2)}\n`);
 
   const files = ['instructions.md', 'brief.json', 'change.diff', 'checks.json'];
   for (const rel of changed) {
@@ -84,5 +86,5 @@ export function writePacket(env, { dir, repo, sha, base, taskId, checks = { gate
     writeFileSync(to, shortenLongLines(shown.stdout, { where: PACKET_NOTE }));
     files.push(`files/${rel}`);
   }
-  return { dir, files, changed, brief };
+  return { dir, files, changed, brief, scope };
 }

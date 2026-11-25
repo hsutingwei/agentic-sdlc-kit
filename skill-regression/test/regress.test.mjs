@@ -71,7 +71,11 @@ test('scores count found, act_on and proven defects, and false alarms on clean c
     [4, 1, 1, 1, 3, 1, 0, 1],
   );
   const base = baselineOf(s, { model: 'm' });
-  assert.deepEqual(base.defects['R01/D1'], { hit: true, act_on: true, proven: true });
+  assert.deepEqual(base.defects['R01/D1'], { hit: true, by_reviewer: true, act_on: true, proven: true });
+  const kitFinding = { id: 'S1', class: 'act_on', title: 'src/a.mjs is outside the brief', file: 'src/a.mjs', line: 3, proven: true, by: 'kit' };
+  const kitOnly = scoreRun([{ case: 'R01', variant: 'seeded', suite, defects: { D1: { line: 3 } }, result: done('concerns', [kitFinding]) }]);
+  assert.deepEqual([kitOnly.totals.hit, kitOnly.totals.kit_only, kitOnly.cases[0].seeded.defects[0].by_reviewer], [1, 1, false]);
+  assert.deepEqual(compareScores(base, kitOnly), ['R01/D1 was found by the reviewer, now only by the kit']);
   const worse = scoreRun([{ case: 'R01', variant: 'seeded', suite, defects: {}, result: done('accept', []) }, { case: 'R01', variant: 'real', suite, defects: {}, result: done('accept', [{ id: 'F1', class: 'act_on', title: 'a' }, { id: 'F2', class: 'act_on', title: 'b' }]) }]);
   assert.deepEqual(compareScores(base, worse), ['R01/D1 was found, now missed', 'R01 clean change: 2 false alarm(s), was 1']);
 });
@@ -90,15 +94,17 @@ test('prepare, run, score and compare with a scripted reviewer', async (t) => {
   await assert.rejects(main(['prepare', out], { env, out: say }), /not empty/);
   await assert.rejects(main(['prepare', path.join(path.dirname(fileURLToPath(import.meta.url)), 'x')], { env, out: say }), /inside the kit/);
 
-  assert.equal(await main(['run', out, '--claude', FAKE, '--only', 'R01,R04'], { env, out: say }), 0);
+  assert.equal(await main(['run', out, '--claude', FAKE, '--only', 'R01,R08'], { env, out: say }), 0);
   assert.match(lines.at(-1), /4 review\(s\) with sonnet at high: 4 usable/);
-  assert.equal(await main(['run', out, '--claude', FAKE, '--only', 'R01,R04'], { env, out: say }), 0);
+  assert.equal(await main(['run', out, '--claude', FAKE, '--only', 'R01,R08'], { env, out: say }), 0);
   assert.match(lines.at(-1), /^0 review\(s\)/, 'finished reviews are not run again');
 
   const report = sb.join('score.md');
   assert.equal(await main(['score', out, '--label', 'accept everything', '--write', report], { env, out: say }), 0);
   const md = readFileSync(report, 'utf8');
-  assert.match(md, /Planted defects found \| 0 of 15/);
+  assert.match(md, /Planted defects found \| 1 of 15/);
+  assert.match(md, /found only by the kit's scope check \| 1 \|/);
+  assert.match(md, /\| R08 \| concerns \| D1 ✗, D2 ◆!★ \| accept \| 0 \|/, 'the kit finds the scope breach that an accepting reviewer missed');
   assert.match(md, /Clean changes accepted \| 2 of 2/);
   assert.match(md, /Runs without a usable verdict \| 12/);
   assert.ok(existsSync(path.join(out, 'score.json')));

@@ -1,5 +1,7 @@
 // Scoring a regression run: which planted defects each reviewer found, how sure it was
-// (act_on, and proven), and what it raised on the clean changes.
+// (act_on, and proven), and what it raised on the clean changes. Findings the kit
+// added itself (its scope check) are counted apart, so a defect only the kit found
+// does not read as the reviewer's.
 
 export const LINE_WINDOW = 5;
 
@@ -24,7 +26,7 @@ export function matches(finding, defect, where, window = LINE_WINDOW) {
  */
 export function scoreRun(entries) {
   const cases = new Map();
-  const totals = { defects: 0, hit: 0, act_on: 0, proven: 0, missed: 0, clean: 0, clean_accepted: 0, false_alarms: 0, seeded: 0, seeded_flagged: 0, not_reviewed: 0, cost_usd: 0 };
+  const totals = { defects: 0, hit: 0, act_on: 0, proven: 0, kit_only: 0, missed: 0, clean: 0, clean_accepted: 0, false_alarms: 0, seeded: 0, seeded_flagged: 0, not_reviewed: 0, cost_usd: 0 };
   for (const e of entries) {
     const row = cases.get(e.case) ?? { case: e.case };
     const r = e.result;
@@ -45,10 +47,12 @@ export function scoreRun(entries) {
       if (r.final.decision !== 'accept') totals.seeded_flagged++;
       const defects = e.suite.defects.map((d) => {
         const hits = findings.filter((f) => matches(f, d, e.defects[d.id]));
-        const out = { id: d.id, hit: hits.length > 0, act_on: hits.some((f) => f.class === 'act_on'), proven: hits.some((f) => f.proven) };
+        const byReviewer = hits.some((f) => f.by !== 'kit');
+        const out = { id: d.id, hit: hits.length > 0, by_reviewer: byReviewer, act_on: hits.some((f) => f.class === 'act_on'), proven: hits.some((f) => f.proven) };
         totals.defects++;
         if (out.hit) totals.hit++;
         else totals.missed++;
+        if (out.hit && !byReviewer) totals.kit_only++;
         if (out.act_on) totals.act_on++;
         if (out.proven) totals.proven++;
         return out;
@@ -75,6 +79,7 @@ export function compareScores(baseline, current) {
   for (const [key, was] of Object.entries(baseline.defects ?? {})) {
     const now = found.get(key);
     if (was.hit && !now?.hit) regressions.push(`${key} was found, now missed`);
+    else if (was.hit && was.by_reviewer !== false && now.by_reviewer === false) regressions.push(`${key} was found by the reviewer, now only by the kit`);
     else if (was.act_on && now && !now.act_on) regressions.push(`${key} was act_on, now only ${now.hit ? 'consider or noted' : 'missed'}`);
   }
   for (const c of current.cases) {
@@ -90,7 +95,7 @@ export function baselineOf(score, meta) {
   const defects = {};
   const falseAlarms = {};
   for (const c of score.cases) {
-    for (const d of c.seeded?.defects ?? []) defects[`${c.case}/${d.id}`] = { hit: d.hit, act_on: d.act_on, proven: d.proven };
+    for (const d of c.seeded?.defects ?? []) defects[`${c.case}/${d.id}`] = { hit: d.hit, by_reviewer: d.by_reviewer, act_on: d.act_on, proven: d.proven };
     if (c.real?.status === 'done') falseAlarms[c.case] = c.real.false_alarms;
   }
   return { schema_version: 1, ...meta, totals: score.totals, defects, false_alarms: falseAlarms };
@@ -108,18 +113,19 @@ export function scoreMarkdown(score, meta) {
     '|---|---|',
     `| Planted defects found | ${t.hit} of ${t.defects} (${pct(t.hit, t.defects)}) |`,
     `| … as act_on | ${t.act_on} |`,
-    `| … proven by a reproduction | ${t.proven} |`,
+    `| … proven (a failing test, or the kit's scope check) | ${t.proven} |`,
+    `| … found only by the kit's scope check | ${t.kit_only ?? 0} |`,
     `| Seeded changes not accepted | ${t.seeded_flagged} of ${t.seeded} |`,
     `| Clean changes accepted | ${t.clean_accepted} of ${t.clean} |`,
     `| False alarms (act_on on a clean change, after proofs) | ${t.false_alarms} |`,
     `| Runs without a usable verdict | ${t.not_reviewed} |`,
     `| List price, USD | ${t.cost_usd.toFixed(2)} |`,
     '',
-    '| Case | Seeded decision | Defects (✓ found, ! act_on, ★ proven) | Clean decision | False alarms |',
+    '| Case | Seeded decision | Defects (✓ found, ◆ only by the kit, ! act_on, ★ proven) | Clean decision | False alarms |',
     '|---|---|---|---|---|',
   ];
   for (const c of score.cases) {
-    const d = c.seeded?.defects?.map((x) => `${x.id} ${x.hit ? '✓' : '✗'}${x.act_on ? '!' : ''}${x.proven ? '★' : ''}`).join(', ') ?? c.seeded?.status ?? '–';
+    const d = c.seeded?.defects?.map((x) => `${x.id} ${x.hit ? (x.by_reviewer === false ? '◆' : '✓') : '✗'}${x.act_on ? '!' : ''}${x.proven ? '★' : ''}`).join(', ') ?? c.seeded?.status ?? '–';
     lines.push(`| ${c.case} | ${c.seeded?.decision ?? c.seeded?.status ?? '–'} | ${d} | ${c.real?.decision ?? c.real?.status ?? '–'} | ${c.real?.false_alarms ?? '–'} |`);
   }
   lines.push('');

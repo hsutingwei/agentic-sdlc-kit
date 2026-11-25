@@ -16,13 +16,13 @@ import { loadPlan, PROFILES, runDir, runStates } from './plan.mjs';
 
 export const RUN_COLUMNS = [
   'run', 'task', 'type', 'risk_declared', 'risk_effective', 'profile', 'repeat', 'pilot',
-  'first_gate', 'attempts', 'escalations', 'decision', 'review_minutes', 'merged', 'escaped_defects',
+  'first_gate', 'attempts', 'escalations', 'decision', 'review_minutes', 'review_time_excluded', 'merged', 'escaped_defects',
   'estimate_h', 'human_h', 'efficiency', 'data_quality', 'ai_h', 'agent_wall_s', 'list_cost_usd',
   'input_tokens', 'output_tokens', 'cache_write_tokens', 'cache_read_tokens', 'five_hour_pct_after', 'seven_day_pct_after',
 ];
 export const PROFILE_COLUMNS = [
   'profile', 'runs', 'accepted', 'first_pass_rate', 'retries', 'escalations', 'escaped_defects',
-  'review_minutes_median', 'review_minutes_total', 'output_tokens_median', 'list_cost_usd_median', 'list_cost_usd_total',
+  'reviews_timed', 'review_minutes_median', 'review_minutes_total', 'output_tokens_median', 'list_cost_usd_median', 'list_cost_usd_total',
   'ai_h_median', 'efficiency',
 ];
 
@@ -52,6 +52,8 @@ export function runRows(dir, { now = new Date() } = {}) {
     const s = states.get(planned.run);
     if (s?.stage !== 'done') continue;
     const task = loadTask(planned.task);
+    // A review time left out (excludeReviewTime) also leaves out the kit's human hours and efficiency.
+    const excluded = Boolean(s.review_time_excluded);
     const k = kitRow(dir, s, now);
     const attempts = s.attempts ?? [];
     rows.push({
@@ -67,13 +69,14 @@ export function runRows(dir, { now = new Date() } = {}) {
       attempts: attempts.length,
       escalations: k?.escalations ?? (s.gate_failed ? 1 : 0),
       decision: s.decision,
-      review_minutes: s.review_minutes,
+      review_minutes: excluded ? null : s.review_minutes,
+      review_time_excluded: excluded,
       merged: s.merged,
       escaped_defects: s.escaped_defects,
       estimate_h: task.brief.estimate_hours,
-      human_h: k?.human_h ?? null,
-      efficiency: k?.efficiency ?? null,
-      data_quality: k?.data_quality ?? null,
+      human_h: excluded ? null : k?.human_h ?? null,
+      efficiency: excluded ? null : k?.efficiency ?? null,
+      data_quality: excluded ? 'Excluded' : k?.data_quality ?? null,
       ai_h: k?.ai_h ?? null,
       agent_wall_s: round(sum(attempts.map((a) => a.wall_ms)) / 1000, 1),
       list_cost_usd: round(sum(attempts.map((a) => a.result?.total_cost_usd)), 4),
@@ -83,7 +86,7 @@ export function runRows(dir, { now = new Date() } = {}) {
       cache_read_tokens: k?.cache_read_tokens ?? null,
       five_hour_pct_after: s.quota?.five_hour ?? null,
       seven_day_pct_after: s.quota?.seven_day ?? null,
-      _kit: k,
+      _kit: excluded ? null : k,
     });
   }
   return rows;
@@ -103,6 +106,7 @@ export function profileRows(rows) {
       retries: own.filter((r) => r.attempts > 1).length,
       escalations: sum(own.map((r) => r.escalations)),
       escaped_defects: sum(accepted.map((r) => r.escaped_defects)),
+      reviews_timed: own.filter((r) => typeof r.review_minutes === 'number').length,
       review_minutes_median: round(median(own.map((r) => r.review_minutes))),
       review_minutes_total: round(sum(own.map((r) => r.review_minutes))),
       output_tokens_median: median(own.map((r) => r.output_tokens)),
@@ -119,16 +123,18 @@ const cell = (v) => (v === null || v === undefined ? '' : String(v));
 export function summaryMarkdown(plan, rows, profiles) {
   const lines = ['# E1 results', '', `Runs finished: ${rows.length} of ${plan.runs.length} planned (seed ${plan.seed}).`, ''];
   lines.push('## By profile', '');
-  lines.push('| Profile | Runs | Accepted | First pass | Retries | Escalations | Escaped defects | Review min (median) | Review min (total) | Output tokens (median) | List cost USD (median) | Efficiency |');
-  lines.push('|---|---|---|---|---|---|---|---|---|---|---|---|');
+  lines.push('| Profile | Runs | Accepted | First pass | Retries | Escalations | Escaped defects | Timed reviews | Review min (median) | Review min (total) | Output tokens (median) | List cost USD (median) | Efficiency |');
+  lines.push('|---|---|---|---|---|---|---|---|---|---|---|---|---|');
   for (const p of profiles) {
-    lines.push(`| ${p.profile} | ${p.runs} | ${p.accepted} | ${cell(p.first_pass_rate)} | ${p.retries} | ${p.escalations} | ${p.escaped_defects} | ${cell(p.review_minutes_median)} | ${cell(p.review_minutes_total)} | ${cell(p.output_tokens_median)} | ${cell(p.list_cost_usd_median)} | ${cell(p.efficiency)} |`);
+    lines.push(`| ${p.profile} | ${p.runs} | ${p.accepted} | ${cell(p.first_pass_rate)} | ${p.retries} | ${p.escalations} | ${p.escaped_defects} | ${p.reviews_timed} | ${cell(p.review_minutes_median)} | ${cell(p.review_minutes_total)} | ${cell(p.output_tokens_median)} | ${cell(p.list_cost_usd_median)} | ${cell(p.efficiency)} |`);
   }
+  const untimed = rows.filter((r) => r.review_time_excluded).length;
+  if (untimed) lines.push('', `Review time left out for ${untimed} run(s); their decisions and checks still count.`);
   lines.push('', '## By task (review minutes; ✓ accepted, ✗ rejected, ! escaped defect)', '');
   lines.push(`| Task | Risk | ${PROFILES.join(' | ')} |`, `|---|---|${PROFILES.map(() => '---').join('|')}|`);
   for (const task of [...new Set(rows.map((r) => r.task))].sort()) {
     const mine = rows.filter((r) => r.task === task);
-    const mark = (r) => `${cell(r.review_minutes)} ${r.decision === 'accept' ? '✓' : '✗'}${r.escaped_defects ? '!' : ''}`;
+    const mark = (r) => `${r.review_time_excluded ? 'untimed' : cell(r.review_minutes)} ${r.decision === 'accept' ? '✓' : '✗'}${r.escaped_defects ? '!' : ''}`;
     const cells = PROFILES.map((p) => mine.filter((r) => r.profile === p).map(mark).join(', ') || '–');
     lines.push(`| ${task} | ${mine[0].risk_effective ?? mine[0].risk_declared} | ${cells.join(' | ')} |`);
   }

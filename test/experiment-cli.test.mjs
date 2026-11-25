@@ -40,14 +40,28 @@ test('init, pilot run, blind review, status and analysis', async (t) => {
   assert.match(shown, /rejected after [\d.]+ min/);
   assert.match(lines.at(-1), /0 review\(s\) left/);
 
+  // A timer left running: the time is left out, the decision still counts.
+  await assert.rejects(e1(['exclude-time', dir, 'r04', '--reason', 'x']), /no run r04/);
+  await assert.rejects(e1(['exclude-time', dir, 'r01']), /give a reason/);
+  assert.equal(await e1(['exclude-time', dir, 'r01', '--reason', 'timer ran overnight 計時沒停']), 0);
+
   assert.equal(await e1(['analyze', dir]), 0);
   const runsCsv = readFileSync(path.join(dir, 'analysis', 'runs.csv'), 'utf8');
   assert.equal(runsCsv.trim().split('\r\n').length, 4);
+  const [header, ...data] = runsCsv.replace(/^\uFEFF/, '').trim().split('\r\n').map((l) => l.split(','));
+  const col = (row, name) => row[header.indexOf(name)];
+  const r01 = data.find((row) => row[0] === 'r01');
+  assert.deepEqual([col(r01, 'review_minutes'), col(r01, 'review_time_excluded'), col(r01, 'human_h'), col(r01, 'data_quality')], ['', 'true', '', 'Excluded']);
+  assert.ok(data.filter((row) => row[0] !== 'r01').every((row) => col(row, 'review_time_excluded') === 'false' && col(row, 'review_minutes') !== ''));
+  assert.doesNotMatch(runsCsv, /overnight|計時沒停/, 'the reason is not published');
   assert.doesNotMatch(runsCsv, /private note|不公開/);
   const profiles = readFileSync(path.join(dir, 'analysis', 'profiles.csv'), 'utf8').trim().split('\r\n');
   assert.equal(profiles.length, 4);
   assert.ok(profiles[0].startsWith('profile,runs,accepted,first_pass_rate'), profiles[0]); // trim() also drops the BOM
   const summary = readFileSync(path.join(dir, 'analysis', 'summary.md'), 'utf8');
   assert.match(summary, /Runs finished: 3 of 42 planned \(seed 11\)/);
-  assert.match(summary, /\| DEMO-102 \| medium \|/);
+  assert.match(summary, /\| DEMO-102 \| medium \|.*untimed/);
+  assert.match(summary, /Review time left out for 1 run\(s\)/);
+  const timed = profiles.slice(1).map((l) => Number(l.split(',')[profiles[0].replace(/^\uFEFF/, '').split(',').indexOf('reviews_timed')]));
+  assert.deepEqual(timed.sort(), [0, 1, 1], 'one pilot run per profile, one of them untimed');
 });

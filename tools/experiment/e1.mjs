@@ -6,6 +6,7 @@
 //   node tools/experiment/e1.mjs review <dir>
 //   node tools/experiment/e1.mjs status <dir>
 //   node tools/experiment/e1.mjs analyze <dir>
+//   node tools/experiment/e1.mjs exclude-time <dir> <run> --reason <text>
 //
 // `run` uses your Claude Code subscription; it stops by itself when a quota window
 // is nearly full and continues where it stopped the next time. `review` needs you:
@@ -20,12 +21,12 @@ import { parseArgs } from 'node:util';
 import { writeAnalysis } from './lib/analyze.mjs';
 import { listTaskIds } from './lib/catalogue.mjs';
 import { buildPlan, loadPlan, readLog, runStates, savePlan } from './lib/plan.mjs';
-import { beginReview, completeReview, pauseReview, pendingReviews, reviewMaterial } from './lib/review.mjs';
+import { beginReview, completeReview, excludeReviewTime, pauseReview, pendingReviews, reviewMaterial } from './lib/review.mjs';
 import { executeRun, quotaAllows, writeShims } from './lib/run.mjs';
 
 export const PILOT = 'DEMO-102';
 export const REPEATS = ['DEMO-101', 'DEMO-108', 'DEMO-112'].map((task) => ({ task, profile: 'max', count: 2 }));
-const USAGE = 'usage: e1.mjs init|run|review|status|analyze <dir> [options]';
+const USAGE = 'usage: e1.mjs init|run|review|status|analyze|exclude-time <dir> [options]';
 
 function defaultClaude() {
   const local = path.join(os.homedir(), '.local', 'bin', process.platform === 'win32' ? 'claude.exe' : 'claude');
@@ -41,9 +42,10 @@ export async function main(argv, { out = console.log, input = process.stdin, out
   const [command, dirArg, ...rest] = argv;
   if (!command || !dirArg) throw new Error(USAGE);
   const dir = path.resolve(dirArg);
-  const { values } = parseArgs({
+  const { values, positionals } = parseArgs({
     args: rest,
-    options: { seed: { type: 'string' }, pilot: { type: 'boolean' }, limit: { type: 'string' }, claude: { type: 'string' } },
+    options: { seed: { type: 'string' }, pilot: { type: 'boolean' }, limit: { type: 'string' }, claude: { type: 'string' }, reason: { type: 'string' } },
+    allowPositionals: command === 'exclude-time',
     strict: true,
   });
 
@@ -143,6 +145,14 @@ export async function main(argv, { out = console.log, input = process.stdin, out
     } finally {
       rl.close();
     }
+    return 0;
+  }
+
+  if (command === 'exclude-time') {
+    const [run] = positionals;
+    if (!run || positionals.length > 1) throw new Error('usage: e1.mjs exclude-time <dir> <run> --reason <text>');
+    excludeReviewTime(dir, run, values.reason);
+    out(`${run}: review time left out of the analysis; its decision and checks still count`);
     return 0;
   }
 

@@ -80,6 +80,21 @@ export function pauseReview(dir, state, { baseEnv = process.env, now } = {}) {
 }
 
 /**
+ * Leaves a finished review's time out of the analysis, for example when the timer
+ * kept running long after the decision; the decision and its checks still count.
+ * The reason stays in the experiment log and is not published.
+ */
+export function excludeReviewTime(dir, run, reason, { now = () => new Date() } = {}) {
+  const state = runStates(dir).get(run);
+  if (!state) throw new Error(`no run ${run} in this experiment`);
+  if (state.stage !== 'done') throw new Error(`run ${run} has not been reviewed yet`);
+  if (!reason || !String(reason).trim()) throw new Error('give a reason');
+  const record = { run, review_time_excluded: String(reason).trim().slice(0, 300) };
+  logRun(dir, record, now());
+  return record;
+}
+
+/**
  * Records the decision, then merges, checks and ends the task.
  * @param {{ decision: 'accept' | 'reject', note?: string }} verdict
  */

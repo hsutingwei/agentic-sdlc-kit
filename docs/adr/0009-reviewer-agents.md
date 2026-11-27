@@ -81,8 +81,8 @@ findings a run proves.
 - Reviewer usage is counted per task, but not yet in the AI time, which comes
   from hook events.
 - Whether a reviewer catches real defects and how often it raises false alarms is
-  not shown by this ADR: skill regression (P8b) and the E1 retrospective (E1d)
-  measure it.
+  not shown by this ADR: skill regression (P8b) and the reviewer on the 42 E1
+  changes (E1c, [experiments.md](../experiments.md)) measure it.
 - First real run (2026-11-25, Claude Code 2.1.330, `max` profile, Sonnet at high
   effort, one fictional change to the demo with a planted defect): with only the
   Read tool the reviewer returned a valid verdict in 22 s for USD 0.06 at list
@@ -93,3 +93,7 @@ findings a run proves.
   planted defects with no false alarm; fourteen were proven, and the one left
   unproven was the scope breach, which led to decision 5. With it, a rerun
   proved all fifteen, with no false alarm and no regression against the baseline.
+- On the 42 changes agents made in E1 (2026-11-27), all of which pass their
+  hidden tests, the reviewer accepted every one with no `act_on` finding, for
+  USD 2.56 at list price in all. No bad change occurred there, so catching one
+  made by an agent on its own is still shown only by planted defects.

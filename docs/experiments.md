@@ -2,15 +2,32 @@
 
 ## E1: the same tasks with the ultra, max and pro profiles
 
-**Status:** all 42 runs done (E1b); the reviews are under way. The agent side
-of the results is below; the review side follows when every run is reviewed (E1c).
+**Status:** done. All 42 runs (E1b); then the hidden tests and one reviewer agent
+on the commit of every run, instead of the person's review of every run (E1c).
 
 ### Question
 
 How much does the plan profile ([ADR-0008](adr/0008-plan-profiles.md)) change
-what matters for the 3× goal: the minutes a person spends reviewing, how often
-the first gate passes, how many defects escape, and how many tokens a task
-costs?
+what matters for the 3× goal: how many changes a person still has to look at,
+how often the first gate passes, how many defects escape, and how many tokens a
+task costs?
+
+### What changed after the runs
+
+The plan was a blind, timed review of all 42 runs by the person. It was dropped
+on 2026-11-27, after one pilot review:
+
+- Timing a person on every change measures the cost the kit is meant to remove,
+  and the measurement itself needs that cost.
+- One person timing themself on tasks they wrote is weak evidence, and nobody
+  else can repeat it.
+- E1 has no run without the kit, so those minutes would have compared the
+  profiles with each other, not the kit with working without it.
+
+The review side now rests on what anyone can run again without a person: each
+task's hidden tests on the exact commit of every run, and the reviewer agent of
+P8 on the same commit. The count that stands in for review time is how many
+changes are left for a person. The 3× goal stays a goal; E1 does not show it.
 
 ### Design
 
@@ -38,21 +55,28 @@ costs?
   out; the demo's agents, skills and hooks still load. Each run records the
   Claude Code version and the kit commit. A failed gate gets one retry with its
   output; a second failure is an escalation.
-- **Review:** every run, merged or not, is reviewed by the person, one at a time,
-  in an order of its own and without the profile. The kit's human timer measures
-  it from the moment the change is shown. Accept records a review and the
-  acceptance on the exact commit, merges if needed and runs the hidden tests;
-  reject ends the task as rejected.
-- **Review notes:** before each review, Claude (the assistant that builds this
-  kit, not one of the profiles) writes a short note on the change: what changed,
-  each acceptance criterion, and anything worth a look. The note never names the
-  profile; the person decides. Decided after the first pilot review, so the review
-  minutes measure a person reading such a note and the change. That is close to
-  the reviewer agents planned for P8, and E1 has no unassisted baseline.
-- **Escaped defect:** an accepted change whose hidden tests fail after the merge.
-- **Merge policy in E1:** reviewer agents arrive in P8, so the person's review is
-  the one review every risk level needs. The gate still follows the effective
-  risk (G1 for low, G2 otherwise); the number of verifiers does not.
+- **Hidden tests:** `e1.mjs check` runs each task's hidden tests on the commit its
+  run left, in a throw-away checkout, merged or not. This is the answer key.
+- **Reviewer agent:** `e1.mjs agent-review` runs one reviewer on that commit, as
+  `asdk review run` does ([ADR-0009](adr/0009-reviewer-agents.md)): sterile, on
+  a packet with the brief, the diff, the changed files and the checks recorded
+  for the commit; `act_on` findings are proven by their reproduction, and the
+  kit checks the brief's scope. A change merged by its run is compared with
+  `dev` as it was before the merge. The reviewer is the same for every run
+  (the `max` profile's reviewer, sonnet at high effort), so it is not what
+  differs between the profiles. Nothing is merged and nothing is recorded in
+  the run.
+- **Left for a person:** a change the reviewer did not accept, or for which it
+  gave no usable verdict.
+- **Slips through:** a change the reviewer accepts whose hidden tests fail.
+- **A person's review (not used for the results):** `e1.mjs review` still shows
+  one run at a time without the profile, times it, and on accept merges and
+  runs the hidden tests. Only the first pilot run was reviewed that way. Notes
+  on each change, written for that review, stay local and unused.
+- **Merge policy in the E1 runs:** the runs were made before P8, with a policy
+  where a person's review is the one review every risk level needs. The gate
+  follows the effective risk (G1 for low, G2 otherwise), and low-risk changes
+  were merged by the run itself.
 - **Quota:** each run's stream-json gives the quota windows; runs stop starting
   when the five-hour window reaches 80 % or the seven-day window 90 %, and the
   plan continues where it stopped.
@@ -85,10 +109,12 @@ Recorded at task start and never edited afterwards; adjust them in each
 ```sh
 node tools/experiment/e1.mjs init ~/asdk-e1
 node tools/experiment/e1.mjs run ~/asdk-e1 --pilot
-node tools/experiment/e1.mjs review ~/asdk-e1
 node tools/experiment/e1.mjs status ~/asdk-e1
 node tools/experiment/e1.mjs run ~/asdk-e1          # the rest; stops by itself near the quota limit
+node tools/experiment/e1.mjs check ~/asdk-e1        # hidden tests on every run's commit
+node tools/experiment/e1.mjs agent-review ~/asdk-e1 # one reviewer agent per run; stops near the quota limit too
 node tools/experiment/e1.mjs analyze ~/asdk-e1
+node tools/experiment/e1.mjs review ~/asdk-e1       # optional: a person's blind, timed review
 node tools/experiment/e1.mjs exclude-time ~/asdk-e1 <run> --reason <text>   # a review timer left running
 ```
 
@@ -96,25 +122,31 @@ node tools/experiment/e1.mjs exclude-time ~/asdk-e1 <run> --reason <text>   # a 
 efficiency for that run) out of the analysis; the decision and its checks still
 count, and the reason stays in the experiment log.
 
-`run` uses the Claude Code subscription of whoever runs it; `--claude <path>`
-names the executable when it is not on PATH.
+`run` and `agent-review` use the Claude Code subscription of whoever runs them;
+`--claude <path>` names the executable when it is not on PATH. `agent-review`
+takes `--model`, `--effort` and `--no-prove` to try another reviewer; a run that
+could not finish is tried again the next time, an answer that is no verdict stays
+as a result.
 
 ### Limits, known before running
 
 - Twelve tasks, one run per task and profile (three for three tasks with `max`):
   differences of a few minutes or a few percent can be noise.
-- The tasks, their estimates and the hidden tests were written by the same
-  person who reviews the runs.
-- The review is blind to the profile, but style can give a model away.
+- The tasks, their estimates and the hidden tests were written by one person,
+  with the assistant that builds this kit.
 - The tasks are small and on one tiny code base; larger tasks may behave
   differently.
 - One machine (Windows), one version of Claude Code, one period of time; models
   and quotas change.
-- The verifier count of the profiles is not tested (no reviewer agents yet).
-- Reviews are assisted by a note on each change (see Review notes), so the review
-  minutes are not those of a person reading the change alone.
-- The timer of the first pilot review (r03) ran overnight before the decision was
-  recorded; its review minutes are left out of the analysis.
+- The hidden tests are one or two tests per task. A change that passes them can
+  still be wrong in a way they do not test.
+- There is no run without the kit, so E1 compares profiles and measures the
+  reviewer; it does not show how much faster work with the kit is.
+- "Left for a person" is a count of changes, not minutes.
+- One reviewer run per change. The verifier count of the profiles is not tested.
+- One run (r03, the first pilot) was reviewed and accepted by the person before
+  the plan changed; its timer ran overnight, so its minutes are left out. It is
+  counted like the other runs in the tables below.
 
 ### Results
 
@@ -147,14 +179,54 @@ tasks.
 What this already shows:
 
 - Every run passed its first gate, so in E1 the first-pass rate cannot tell the
-  profiles apart. The tasks were small enough for every profile; the comparison
-  rests on the review side.
+  profiles apart. The tasks were small enough for every profile.
 - `pro` costs about a third of `ultra` or `max` per task and takes half the time.
   `ultra` and `max` cost about the same on low and medium tasks; on the two high
   tasks `ultra` cost about 2.7 times as much as `max`.
 
-#### Review side
+#### Hidden tests and the reviewer agent (final)
 
-Not yet: review minutes, accepted and rejected changes, escaped defects (hidden
-tests after the merge) and the efficiency score per profile, from
-`node tools/experiment/e1.mjs analyze`.
+All 42 changes, 2026-11-27, Claude Code 2.1.330 on Windows, kit commit cdc84a7,
+reviewer `0f6759901d5d` (reviewer.md), sonnet at high effort, one run per
+change, from `node tools/experiment/e1.mjs analyze`.
+
+| | Hidden tests pass | Hidden tests fail |
+|---|---|---|
+| Reviewer accepts | 42 | 0 |
+| Reviewer does not accept | 0 | 0 |
+| No usable verdict | 0 | 0 |
+
+| Profile | Runs | Hidden tests pass | Reviewer accepts | Reviewer `act_on` findings | Reviewer `consider` findings |
+|---|---|---|---|---|---|
+| ultra | 12 | 12 | 12 | 0 | 1 |
+| max | 18 | 18 | 18 | 0 | 0 |
+| pro | 12 | 12 | 12 | 0 | 2 |
+
+The 42 reviews cost USD 2.56 at list price and took 8.7 minutes in all (median
+11 s, longest 28 s); the seven-day quota moved from 16 % to 17 %. No change left
+the scope of its brief.
+
+What this shows:
+
+- **The profiles cannot be told apart by quality on these tasks.** Every change
+  of every profile passes its hidden tests and is accepted. With the agent side
+  above, `pro` did the same work for about a third of the list cost.
+- **The reviewer raised no false alarm on real agent work.** On 42 changes that
+  pass their hidden tests it gave no `act_on` finding and accepted all of them,
+  as it accepted the eight clean changes of the
+  [skill regression](../skill-regression/results/).
+- **Left for a person by the reviewer: 0 of 42.** Under the kit's default merge
+  policy the 8 high-risk changes still need a person's review whatever the
+  reviewer says ([ADR-0007](adr/0007-risk-and-merge-policy.md)), so a person
+  would look at 8 of 42 instead of 42.
+
+What it does not show:
+
+- **Whether the reviewer catches a bad change made by an agent.** There was none
+  among the 42, so nothing could slip through and nothing could be caught. That
+  evidence is the skill regression, where every planted defect was found and
+  proven; planted defects are not the mistakes agents make on their own.
+- **That the 42 accepted changes are right.** They pass one or two hidden tests
+  each. The person's one pilot review accepted its change too.
+- **Any saving of time.** The count went from 42 to 8, with no minutes behind
+  either number and no run without the kit to compare with.

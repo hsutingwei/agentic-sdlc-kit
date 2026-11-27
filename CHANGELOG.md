@@ -5,6 +5,18 @@ until 1.0 the command line and file formats may still change.
 
 ## Unreleased
 
+### E1 results without a person's review (E1c)
+
+- `e1.mjs check`: each task's hidden tests on the commit its run left, merged
+  or not, without merging anything.
+- `e1.mjs agent-review`: one sterile reviewer agent per run, the same for every
+  profile, with proofs and the scope check; numbers go to the experiment log,
+  the answer stays in the run folder.
+- `e1.mjs analyze` has a row for every finished run and sets the reviewer's
+  decisions against the hidden tests: changes left for a person, changes that
+  would slip through. The person's timed review of every run is no longer part
+  of the experiment ([experiments.md](docs/experiments.md) says why).
+
 ### Skill regression (P8b)
 
 - `skill-regression/`: eight fictional cases with fifteen planted defects, each

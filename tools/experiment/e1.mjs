@@ -4,13 +4,15 @@
 //   node tools/experiment/e1.mjs init <dir> [--seed <n>]
 //   node tools/experiment/e1.mjs run <dir> [--pilot] [--limit <n>] [--claude <path>]
 //   node tools/experiment/e1.mjs review <dir>
+//   node tools/experiment/e1.mjs check <dir>
 //   node tools/experiment/e1.mjs status <dir>
 //   node tools/experiment/e1.mjs analyze <dir>
 //   node tools/experiment/e1.mjs exclude-time <dir> <run> --reason <text>
 //
 // `run` uses your Claude Code subscription; it stops by itself when a quota window
 // is nearly full and continues where it stopped the next time. `review` needs you:
-// one change at a time, without the profile, timed.
+// one change at a time, without the profile, timed. `check` needs nobody: it runs
+// each task's hidden tests on the commit its run left, without merging anything.
 
 import { existsSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
@@ -21,12 +23,13 @@ import { parseArgs } from 'node:util';
 import { writeAnalysis } from './lib/analyze.mjs';
 import { listTaskIds } from './lib/catalogue.mjs';
 import { buildPlan, loadPlan, readLog, runStates, savePlan } from './lib/plan.mjs';
+import { checkRun, committedRuns, pendingChecks } from './lib/retro.mjs';
 import { beginReview, completeReview, excludeReviewTime, pauseReview, pendingReviews, reviewMaterial } from './lib/review.mjs';
 import { executeRun, quotaAllows, writeShims } from './lib/run.mjs';
 
 export const PILOT = 'DEMO-102';
 export const REPEATS = ['DEMO-101', 'DEMO-108', 'DEMO-112'].map((task) => ({ task, profile: 'max', count: 2 }));
-const USAGE = 'usage: e1.mjs init|run|review|status|analyze|exclude-time <dir> [options]';
+const USAGE = 'usage: e1.mjs init|run|review|check|status|analyze|exclude-time <dir> [options]';
 
 function defaultClaude() {
   const local = path.join(os.homedir(), '.local', 'bin', process.platform === 'win32' ? 'claude.exe' : 'claude');
@@ -145,6 +148,16 @@ export async function main(argv, { out = console.log, input = process.stdin, out
     } finally {
       rl.close();
     }
+    return 0;
+  }
+
+  if (command === 'check') {
+    for (const state of pendingChecks(dir)) {
+      const { hidden_check: h } = checkRun(dir, state, { baseEnv });
+      out(`${state.run} ${state.task}: hidden tests ${h.result} (${h.passed} passed, ${h.failed} failed)`);
+    }
+    const all = committedRuns(dir).map((s) => s.hidden_check.result);
+    out(`${all.length} run(s) checked: ${all.filter((r) => r === 'pass').length} pass their hidden tests, ${all.filter((r) => r !== 'pass').length} fail`);
     return 0;
   }
 

@@ -27,8 +27,9 @@ test('the demo with the E2 base passes G2, in a folder with CJK characters and a
   assert.equal(gate.summary.result, 'pass', JSON.stringify(gate.outputs, null, 2));
   const unit = gate.outputs['unit tests'];
   const integration = gate.outputs['integration tests'];
-  assert.match(unit, /# fail 0/);
-  assert.match(integration, /# pass 3/);
+  // The summary lines, whichever reporter this version of node uses when its output is captured.
+  assert.match(unit, / fail 0$/m);
+  assert.match(integration, / pass 3$/m);
   // The scenario of the demo still describes this API: an item it creates has the fields it expects.
   const scenario = JSON.parse(readFileSync(path.join(repo, 'test', 'scenarios', 'todos-basic.json'), 'utf8'));
   assert.deepEqual(scenario.steps[0].expect.json, { title: '寫驗證情境', done: false });

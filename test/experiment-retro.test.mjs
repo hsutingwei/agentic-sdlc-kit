@@ -11,6 +11,7 @@ import { createSandbox } from './helpers/sandbox.mjs';
 import { git } from '../core/git.mjs';
 import { loadTasks } from '../collector/lib/tasks.mjs';
 import { main } from '../tools/experiment/e1.mjs';
+import { reviewerAgainstHidden, writeAnalysis } from '../tools/experiment/lib/analyze.mjs';
 import { buildPlan, runStates, savePlan } from '../tools/experiment/lib/plan.mjs';
 import { agentReviewRun, checkRun, committedRuns, pendingAgentReviews, pendingChecks, reviewBase } from '../tools/experiment/lib/retro.mjs';
 import { pendingReviews } from '../tools/experiment/lib/review.mjs';
@@ -122,4 +123,72 @@ test('one reviewer agent reviews the commit of each run, merged or not, and reco
   assert.deepEqual(pendingAgentReviews(dir), []);
   await e1(['status', dir]);
   assert.match(lines.at(-1), /last quota seen: seven_day 21%/, 'the quota check reads what the reviewer runs reported');
+});
+
+test('the analysis sets the reviewer agent against the hidden tests, without any review by a person', async (t) => {
+  // The analysis reads task and profile from the plan, so this plan is written out.
+  const sb = createSandbox(t, 'e1-retro-analysis');
+  const dir = sb.join('實驗 E1');
+  const planned = [
+    ['r01', 'DEMO-101', 'pro', 'solve'],
+    ['r02', 'DEMO-109', 'pro', 'shallow'], // the hidden tests fail
+    ['r03', 'DEMO-102', 'max', 'solve'],
+    ['r04', 'DEMO-108', 'ultra', 'solve'],
+    ['r05', 'DEMO-110', 'ultra', 'shallow'], // the hidden tests fail
+  ].map(([run, task, profile, mode]) => ({ run, task, profile, repeat: 1, pilot: false, mode }));
+  savePlan(dir, { seed: 5, pilot: 'DEMO-101', runs: planned.map(({ mode, ...r }) => r) });
+  for (const { mode, ...r } of planned) executeRun(dir, r, { baseEnv: { ...sb.env, FAKE_CLAUDE_MODE: mode }, claude });
+  for (const s of pendingChecks(dir)) checkRun(dir, s, { baseEnv: sb.env });
+  const review = (r, mode) => agentReviewRun(dir, runStates(dir).get(r), { baseEnv: { ...sb.env, FAKE_REVIEW_MODE: mode }, claude: reviewer });
+  review('r01', 'accept');
+  review('r02', 'accept'); // slips through
+  review('r03', 'prove'); // held with a proven finding, though the hidden tests pass
+  review('r04', 'garbage');
+  review('r05', 'prove'); // caught
+
+  const { rows, profiles, files } = writeAnalysis(dir);
+  assert.deepEqual(rows.map((r) => `${r.run} ${r.hidden_tests} ${r.reviewer_status} ${r.reviewer_decision} ${r.decision}`), [
+    'r01 pass done accept null',
+    'r02 fail done accept null',
+    'r03 pass done concerns null',
+    'r04 pass invalid null null',
+    'r05 fail done concerns null',
+  ]);
+  assert.deepEqual(reviewerAgainstHidden(rows), {
+    changes: 5,
+    accepted_pass: 1,
+    accepted_fail: 1,
+    held_pass: 1,
+    held_pass_proven: 1,
+    held_fail: 1,
+    no_verdict_pass: 1,
+    no_verdict_fail: 0,
+    for_a_person: 3,
+    settings: ['sonnet at high effort'],
+    cost_usd_total: 0.1,
+    wall_s_median: rows.map((r) => r.reviewer_wall_s).sort((a, b) => a - b)[2],
+  });
+  const pro = profiles.find((p) => p.profile === 'pro');
+  assert.deepEqual([pro.runs, pro.hidden_checked, pro.hidden_passed, pro.reviewer_reviewed, pro.reviewer_accepted, pro.accepted, pro.reviews_timed], [2, 2, 1, 2, 2, 0, 0]);
+
+  const summary = readFileSync(files.summary, 'utf8');
+  assert.match(summary, /Runs finished: 5 of 5 planned/);
+  assert.match(summary, /Hidden tests run on 5, reviewer agent on 5, reviewed by a person 0\./);
+  assert.match(summary, /\| Reviewer accepts \| 1 \| 1 \|\n\| Reviewer does not accept \| 1 \| 1 \|\n\| No usable verdict \| 1 \| 0 \|/);
+  assert.match(summary, /A person would look at 3 of 5 change\(s\)/);
+  assert.match(summary, /Not accepted although the hidden tests pass: 1, 1 of them with a proven finding\./);
+  assert.match(summary, /\| pro \| 2 \| 1 of 2 \| 2 of 2 \| 0 \|/);
+  assert.match(summary, /\| DEMO-109 \| \w+ \| – \| – \| H✗ R:accept \|/);
+  assert.match(summary, /\| DEMO-108 \| \w+ \| H✓ R:none \| – \| – \|/);
+  const runsCsv = readFileSync(files.runs, 'utf8');
+  assert.match(runsCsv, /hidden_tests,reviewer_status,reviewer_decision,reviewer_act_on,reviewer_proven/);
+  assert.doesNotMatch(`${runsCsv}${summary}`, /The list is wrong|suspected problem/, 'no finding text is published');
+
+  // A person's review of one run still counts, next to the rest.
+  const input = new PassThrough();
+  input.end(['', 'a', '', 'q'].join('\n') + '\n');
+  await main(['review', dir], { out: () => {}, baseEnv: sb.env, input, output: new PassThrough() });
+  const after = writeAnalysis(dir);
+  assert.equal(after.rows.filter((r) => r.decision === 'accept').length, 1);
+  assert.match(readFileSync(after.files.summary, 'utf8'), /reviewed by a person 1\./);
 });

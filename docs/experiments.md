@@ -230,3 +230,126 @@ What it does not show:
   each. The person's one pilot review accepted its change too.
 - **Any saving of time.** The count went from 42 to 8, with no minutes behind
   either number and no run without the kit to compare with.
+
+## E2: harder tasks, to see what happens when an agent's change is wrong
+
+**Status:** prepared on 2026-11-27 (E2a): the tasks, the runner and the rules
+below. No run has been made. This section was written before any run; what the
+pilot changes will be listed under "Changes after the pilot", with reasons.
+
+### Question
+
+1. On tasks with a known way of being left half-done, how often is the change an
+   agent makes on its own wrong by the hidden tests, and does the profile change
+   that?
+2. Of the wrong changes, how many does the reviewer agent hold back, and how
+   many does it accept? And how many right changes does it hold back?
+
+E1 could not answer the second question: all 42 of its changes were right, so
+the reviewer never met a wrong change that an agent made on its own.
+
+### Design
+
+- **Starting point:** the demo with a base laid over it
+  ([tools/experiment/suites/e2/base](../tools/experiment/suites/e2/base/)): due
+  dates, list filters, search, a summary, bulk import and a JSON data file, in
+  seven source files with tests, and the HTTP contract written out in the README.
+  The demo in `examples/` is not changed.
+- **Tasks:** eight fictional tasks, DEMO-201 to DEMO-208, in
+  [tools/experiment/suites/e2/tasks](../tools/experiment/suites/e2/tasks/): three
+  bug fixes, four features and one refactoring; one low, five medium and two
+  high by declared risk. They are harder than E1's in ways that can be named:
+  a bug with a second code path, a feature that crosses the store, the HTTP
+  layer and the data file, a requirement that holds "wherever an item is
+  created", a refactoring that has to keep a written contract.
+- **Hard for a stated reason:** each task has `naive/`, a half-done version laid
+  over the reference solution, with the tests its author would have written. A
+  test proves, for every task: the starting point passes G2 and fails the hidden
+  tests; the reference solution stays inside the brief's scope and passes both;
+  the half-done version stays inside the scope, passes G2, passes some hidden
+  tests and fails others. So the visible gate cannot tell half from done, and
+  the hidden tests can.
+- **Hidden tests follow the brief:** every hidden assertion is something an
+  acceptance criterion says, or the README's HTTP contract where a criterion
+  points to it. A requirement nobody wrote down is not tested.
+- **Runs:** every task with every profile twice: 48 runs, seeded and
+  interleaved. Two runs per cell because a wrong change is a matter of chance,
+  and one run cannot show a rate.
+- **One run:** as in E1, with E1's merge policy. Since 2026-11-27 `wt finish`
+  also refuses a change with a file outside the brief's scope; such a run gets
+  the one retry a failed gate gets, with the files named. A change still outside
+  afterwards is left for a person.
+- **Hidden tests and reviewer agent:** as in E1c. `e2.mjs check` runs the hidden
+  tests on the commit of every run; `e2.mjs agent-review` runs one reviewer on
+  that commit, the reviewer of the `max` profile at the run's effective risk, with proofs
+  and the scope check, the same for every profile. Nothing is merged or recorded
+  in the run.
+- **What is reported:** by profile, how many changes pass their hidden tests;
+  the reviewer's decisions against the hidden tests (accepted and right,
+  accepted and wrong, held back and wrong, held back and right); list cost and
+  time. Counts, with the number of runs beside every one.
+
+| Task | Type | Risk | What the half-done version leaves out | Hours without AI |
+|---|---|---|---|---|
+| DEMO-201 An item due today is listed as overdue | bugfix | medium | the summary, which decides "overdue" in a second place | 1 |
+| DEMO-202 Page the list of items | feature | medium | the total counts every item instead of the filtered ones; `1e2` and an empty value pass as numbers | 2 |
+| DEMO-203 Give items a priority and move the data file to version 2 | feature | high | the bulk import, which builds its items itself | 4 |
+| DEMO-204 Quick changes can leave an older state in the data file | bugfix | medium | after one failed write nothing is saved again; every change is a write of its own | 2 |
+| DEMO-205 Export the list as CSV | feature | medium | a lone carriage return is not quoted; a formula with a comma is not guarded | 2 |
+| DEMO-206 Move the routes into a table | refactor | high | `:id` takes anything, so `/todos/007` is item 7 and `GET /todos/import` is an id | 3 |
+| DEMO-207 Repeat an item every month | feature | medium | after a short month the series stays on the earlier day: 01-31, 02-28, 03-28 | 4 |
+| DEMO-208 Search misses titles when the query has capital letters | bugfix | low | full-width letters and digits still differ from half-width ones | 0.75 |
+
+### Pilot, and what may change after it
+
+`e2.mjs init --pilot` plans a pilot in a folder of its own: every task once with
+`pro`, the cheapest profile, eight runs. It shows what a run costs and finds
+faults in the tasks. Its runs are never part of the results.
+
+After the pilot a task may be changed for three reasons only, each change
+listed here with its reason:
+
+1. a hidden test asserts something no acceptance criterion says;
+2. a hidden test does not give the same result every time;
+3. a brief can be read in two ways.
+
+A task is not made harder because the agent got it right. If the agents get
+everything right again, that is the result and it will be reported as that.
+Whether the 48 runs are made after the pilot is the person's decision.
+
+### How to run it
+
+```sh
+node tools/experiment/e2.mjs init ~/asdk-e2-pilot --pilot
+node tools/experiment/e2.mjs run ~/asdk-e2-pilot
+node tools/experiment/e2.mjs check ~/asdk-e2-pilot
+node tools/experiment/e2.mjs analyze ~/asdk-e2-pilot
+
+node tools/experiment/e2.mjs init ~/asdk-e2
+node tools/experiment/e2.mjs run ~/asdk-e2            # stops by itself near the quota limit
+node tools/experiment/e2.mjs check ~/asdk-e2
+node tools/experiment/e2.mjs agent-review ~/asdk-e2
+node tools/experiment/e2.mjs analyze ~/asdk-e2
+```
+
+### Limits, known before running
+
+- Eight tasks and sixteen runs per profile: a rate from sixteen runs is rough,
+  and a difference of one or two runs between profiles can be chance.
+- The tasks, the hidden tests and the half-done versions were written by one
+  person with the assistant that builds this kit. A half-done version shows one
+  way to fail; agents may fail in other ways, or not at all.
+- The agents under test are models of the same family as that assistant. The
+  tasks may be easier, or harder, for them than for another agent.
+- The half-done versions are not agent mistakes and are not counted as such. If
+  no agent makes a wrong change, the reviewer can only be run on them, which
+  measures what skill regression already measures: planted defects.
+- The reviewer runs after the fact. A wrong change it holds back is not sent
+  back and fixed, so E2 does not show what the whole loop delivers.
+- One machine (Windows), one version of Claude Code, one period of time.
+- No run without the kit: E2, like E1, does not show how much faster work with
+  the kit is.
+
+### Changes after the pilot
+
+None yet: no pilot has been run.

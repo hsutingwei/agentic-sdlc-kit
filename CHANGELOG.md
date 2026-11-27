@@ -5,6 +5,18 @@ until 1.0 the command line and file formats may still change.
 
 ## Unreleased
 
+### Experiment E2, prepared (E2a)
+
+- `tools/experiment/suites/e2/`: a larger starting point laid over the demo and
+  eight harder fictional tasks, DEMO-201 to DEMO-208. Each has a half-done
+  version that a test proves to pass the gates and fail hidden tests
+  ([experiments.md](docs/experiments.md)).
+- `tools/experiment/e2.mjs`: every task with every profile twice; `init --pilot`
+  plans a pilot in a folder of its own. The commands are shared with `e1.mjs`
+  through `lib/cli.mjs`; an experiment folder belongs to one suite.
+- A run that `wt finish` refuses for scope gets the one retry a failed gate
+  gets, with the files named; runs record `first_scope` and `outside_scope`.
+
 ### Scope in the merge gate
 
 - `asdk wt finish` does not merge a change with a file outside the `scope` of

@@ -5,6 +5,16 @@ until 1.0 the command line and file formats may still change.
 
 ## Unreleased
 
+### Scope in the merge gate
+
+- `asdk wt finish` does not merge a change with a file outside the `scope` of
+  the task's brief, whatever the risk. The brief is read from the integration
+  branch, so a branch cannot widen its own scope. A person's passing review of
+  that exact commit clears it; an agent's review does not. A task without a
+  brief on the integration branch is merged as before, with a line saying the
+  scope was not checked.
+- The `wt.finish` event carries `scope_checked` and `outside_scope`.
+
 ### E1 results without a person's review (E1c)
 
 - `e1.mjs check`: each task's hidden tests on the commit its run left, merged

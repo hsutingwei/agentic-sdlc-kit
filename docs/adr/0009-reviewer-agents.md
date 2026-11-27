@@ -54,7 +54,9 @@ findings a run proves.
    proven by it, and every such file no `act_on` finding names gets a proven
    finding of the kit's own (`S1`, `S2`, …), so an accepting reviewer cannot let
    a scope breach through. This runs whether proving is on or not. The merge
-   gate does not check scope yet.
+   gate checks scope on its own since 2026-11-27, by the integration branch's
+   copy of the brief ([ADR-0007](0007-risk-and-merge-policy.md), decision 6);
+   the reviewer still reads the brief of the commit it reviews.
 6. **Recorded on the commit.** Each verdict becomes
    `task verify --check review --executor agent --sha <commit>`: only `accept`
    passes. `concerns` and `reject` fail, and a failing review blocks the merge

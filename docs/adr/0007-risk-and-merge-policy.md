@@ -43,6 +43,15 @@ that hard:
    checks) verifies the commit to be pushed; with `push_check.block` the
    pre-push hook refuses a commit without a passing G3 run. Nothing merges into
    `main` automatically.
+6. **A change stays inside the scope of its brief** (added 2026-11-27). After
+   the gate passes, `wt finish` compares the changed files, deleted ones too,
+   with the `scope` of `briefs/<TASK-ID>.json` as the integration branch has it:
+   a file that matches a `forbidden_paths` glob, or no `allowed_paths` glob, is
+   outside, and the change is not merged, whatever its risk. A branch cannot
+   widen its own scope, because its copy of the brief is not the one read. Only
+   a person clears it: their latest review of that exact commit must pass; an
+   agent's review does not. A task without a brief on the integration branch
+   has no scope to check, and `wt finish` says so. This is not a setting.
 
 ## Consequences
 
@@ -50,6 +59,12 @@ that hard:
   saved; the person reviews what the paths say is risky.
 - A task that touches a risky path waits for reviews even if it was declared
   low. The demo's DEMO-001 does: it changes the HTTP layer and becomes medium.
+- A low-risk change that leaves its brief's scope no longer merges without a
+  person, although low risk needs no review. Before decision 6 only a reviewer
+  run caught that ([ADR-0009](0009-reviewer-agents.md)), and low risk has none.
+- A brief has to be on the integration branch before its task starts for the
+  scope to count. A brief that is not valid there stops the merge until it is
+  repaired.
 - Review counts are configuration, so P6b can take them from the plan profile
   (more independent verifiers on a large plan) without changing this rule.
 - Reviewer agents themselves arrive in P8; until then a review is whatever an

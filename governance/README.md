@@ -9,6 +9,7 @@ before its work is accepted.
   - Built-in steps: `syntax-check`, `clean-tree` (no uncommitted or untracked files), `references` (paths named in agent instructions exist), `deny-sync` (nested `.claude/settings.json` files repeat the root deny rules).
   - `.asdk/risk-paths.json`: minimum risk by changed path; the gate records declared, path minimum and effective risk.
   - `merge_policy` in `.asdk/gates.json`: per effective risk, the gate and the reviews (`any`, `agent`, `human`) that `wt finish` requires on the exact commit it merges. Rules are read from the integration branch ([ADR-0007](../docs/adr/0007-risk-and-merge-policy.md)).
+  - Scope: whatever the risk, `wt finish` refuses a change with a file outside the `scope` of `briefs/<TASK-ID>.json` as the integration branch has it ([`gate/brief.mjs`](gate/brief.mjs), [`gate/scope.mjs`](gate/scope.mjs)); only a person's passing review of that commit clears it.
   - `push_check.block`: the pre-push hook refuses a commit without a passing run of the push gate.
   - `examples/demo-api` uses all of it: G1 (syntax, unit), G2 (adds the agent checks and integration tests), G3 (clean tree, then G2).
 - **P6b (done):**

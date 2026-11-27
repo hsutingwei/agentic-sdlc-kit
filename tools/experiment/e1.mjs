@@ -25,7 +25,8 @@ export const REPEATS = ['DEMO-101', 'DEMO-108', 'DEMO-112'].map((task) => ({ tas
 export const main = createMain({
   name: 'e1',
   seed: 20261125,
-  plan(seed) {
+  plan(seed, { pilot }) {
+    if (pilot) throw new Error('the E1 pilot is part of its plan: use "run --pilot"');
     const plan = buildPlan({ tasks: listTaskIds('e1'), seed, pilot: PILOT, repeats: REPEATS });
     return { plan, note: `the first ${plan.runs.filter((r) => r.pilot).length} are the pilot (${PILOT})` };
   },

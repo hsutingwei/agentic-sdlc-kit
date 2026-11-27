@@ -177,7 +177,7 @@ const cell = (v) => (v === null || v === undefined ? '' : String(v));
 
 export function summaryMarkdown(plan, rows, profiles) {
   const n = (pick) => rows.filter(pick).length;
-  const lines = [`# ${(plan.suite ?? 'e1').toUpperCase()} results`, '', `Runs finished: ${rows.length} of ${plan.runs.length} planned (seed ${plan.seed}).`];
+  const lines = [`# ${(plan.suite ?? 'e1').toUpperCase()} ${plan.purpose === 'pilot' ? 'pilot (not part of the results)' : 'results'}`, '', `Runs finished: ${rows.length} of ${plan.runs.length} planned (seed ${plan.seed}).`];
   lines.push(`Hidden tests run on ${n((r) => r.hidden_tests)}, reviewer agent on ${n((r) => r.reviewer_status)}, reviewed by a person ${n((r) => r.decision)}.`, '');
 
   const a = reviewerAgainstHidden(rows);

@@ -1,7 +1,7 @@
 // The command line every experiment shares. An experiment is a suite of tasks and
 // a way to plan its runs; e1.mjs and e2.mjs each give theirs to createMain.
 //
-//   init <dir> [--seed <n>]
+//   init <dir> [--seed <n>] [--pilot]      (--pilot only where the suite plans one apart)
 //   run <dir> [--pilot] [--limit <n>] [--claude <path>]
 //   review <dir>
 //   check <dir>
@@ -43,8 +43,8 @@ function lastQuota(dir) {
  * @param {object} suite
  * @param {string} suite.name      the suite's name, as plan.json records it: 'e1'
  * @param {number} suite.seed      the seed `init` uses when none is given
- * @param {object} [suite.options] options of `init` that only this suite has (parseArgs)
- * @param {(seed: number, values: object) => { plan: object, note: string }} suite.plan
+ * @param {(seed: number, options: object) => { plan: object, note: string }} suite.plan
+ *   the plan `init` saves; `options.pilot` is true when --pilot was given
  */
 export function createMain(suite) {
   const script = `${suite.name}.mjs`;
@@ -65,7 +65,6 @@ export function createMain(suite) {
         model: { type: 'string' },
         effort: { type: 'string' },
         'no-prove': { type: 'boolean' },
-        ...(command === 'init' ? suite.options : undefined),
       },
       allowPositionals: command === 'exclude-time',
       strict: true,

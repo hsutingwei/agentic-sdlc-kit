@@ -9,8 +9,8 @@
 //   runs/<run>/       one demo repository, worktree root and metrics folder per run
 //   analysis/         CSV files and tables made from the log and the reports
 //
-// The plan starts with a pilot (one task with every profile), so the cost of a run
-// is known before the rest is started.
+// A plan can start with a pilot (one task with every profile), so the cost of a
+// run is known before the rest is started.
 
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -41,16 +41,21 @@ function shuffle(list, rand) {
 }
 
 /**
- * Every task with every profile once, plus extra runs to see how much one setting
- * varies; the pilot task's runs come first, everything else in seeded order.
- * @returns {{ seed: number, pilot: string, runs: Array<{ run: string, task: string, profile: string, repeat: number, pilot: boolean }> }}
+ * Every task with every profile `times` times, plus extra runs (`repeats`) to see
+ * how much one setting varies. With a pilot task, its first runs come first;
+ * everything else is in seeded order.
+ * @returns {{ seed: number, pilot: string | null, runs: Array<{ run: string, task: string, profile: string, repeat: number, pilot: boolean }> }}
  */
-export function buildPlan({ tasks, seed, pilot, repeats = [] }) {
-  if (!tasks.includes(pilot)) throw new Error(`pilot task ${pilot} is not in the catalogue`);
+export function buildPlan({ tasks, seed, pilot = null, repeats = [], profiles = PROFILES, times = 1 }) {
+  if (tasks.length === 0) throw new Error('no tasks to plan');
+  if (pilot !== null && !tasks.includes(pilot)) throw new Error(`pilot task ${pilot} is not in the catalogue`);
+  const unknown = profiles.filter((p) => !PROFILES.includes(p));
+  if (unknown.length > 0 || profiles.length === 0) throw new Error(`profiles must be among ${PROFILES.join(', ')}`);
+  if (!Number.isInteger(times) || times < 1) throw new Error('times must be a whole number of 1 or more');
   const rand = seeded(seed);
-  const all = tasks.flatMap((task) => PROFILES.map((profile) => ({ task, profile, repeat: 1 })));
+  const all = tasks.flatMap((task) => profiles.flatMap((profile) => Array.from({ length: times }, (_, i) => ({ task, profile, repeat: i + 1 }))));
   for (const { task, profile, count } of repeats) {
-    for (let r = 2; r <= count + 1; r++) all.push({ task, profile, repeat: r });
+    for (let r = times + 1; r <= times + count; r++) all.push({ task, profile, repeat: r });
   }
   const first = shuffle(all.filter((r) => r.task === pilot && r.repeat === 1), rand);
   const rest = shuffle(all.filter((r) => !(r.task === pilot && r.repeat === 1)), rand);

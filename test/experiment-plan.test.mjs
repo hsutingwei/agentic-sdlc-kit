@@ -26,6 +26,19 @@ test('the plan: every task with every profile, the repeats, the pilot first, rep
   assert.throws(() => buildPlan({ tasks: TASKS, seed: 1, pilot: 'DEMO-999' }), /not in the catalogue/);
 });
 
+test('a plan can repeat every cell, use some profiles only, and have no pilot', () => {
+  const twice = buildPlan({ tasks: ['DEMO-201', 'DEMO-202'], seed: 3, times: 2, repeats: [{ task: 'DEMO-201', profile: 'pro', count: 1 }] });
+  assert.equal(twice.runs.length, 13);
+  assert.deepEqual([twice.pilot, twice.runs.some((r) => r.pilot)], [null, false]);
+  assert.deepEqual(twice.runs.filter((r) => r.task === 'DEMO-201' && r.profile === 'pro').map((r) => r.repeat).sort(), [1, 2, 3]);
+  assert.deepEqual(twice.runs.filter((r) => r.task === 'DEMO-202' && r.profile === 'ultra').map((r) => r.repeat).sort(), [1, 2]);
+  const one = buildPlan({ tasks: ['DEMO-201', 'DEMO-202'], seed: 3, profiles: ['pro'] });
+  assert.deepEqual(one.runs.map((r) => [r.run, r.profile, r.repeat]).sort(), [['r01', 'pro', 1], ['r02', 'pro', 1]]);
+  assert.throws(() => buildPlan({ tasks: [], seed: 1 }), /no tasks to plan/);
+  assert.throws(() => buildPlan({ tasks: TASKS, seed: 1, profiles: ['team'] }), /profiles must be among ultra, max, pro/);
+  assert.throws(() => buildPlan({ tasks: TASKS, seed: 1, times: 0 }), /times must be a whole number/);
+});
+
 test('a plan is saved once; the log is append-only and states are derived', (t) => {
   const sb = createSandbox(t, 'e1-plan');
   const dir = sb.join('實驗 E1');

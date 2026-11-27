@@ -9,8 +9,8 @@ import { fileURLToPath } from 'node:url';
 import { ruleError } from '../../core/errors.mjs';
 import { git, tryGit } from '../../core/git.mjs';
 import { shortenLongLines } from '../../core/text.mjs';
-import { validateContract } from '../../core/validate.mjs';
 import { dataPath } from '../../collector/lib/paths.mjs';
+import { briefPath, readBrief } from '../gate/brief.mjs';
 import { scopeCheck } from '../gate/scope.mjs';
 
 export const INSTRUCTIONS = path.join(path.dirname(fileURLToPath(import.meta.url)), 'reviewer.md');
@@ -19,19 +19,9 @@ const PACKET_NOTE = 'whole line in the repository';
 
 /** The task brief as it is in `sha`; the brief is the reviewer's definition of done. */
 export function briefAt(env, { repo, sha, taskId }) {
-  const rel = `briefs/${taskId}.json`;
-  const shown = tryGit(['show', `${sha}:${rel}`], { cwd: repo, env });
-  if (!shown.ok) throw ruleError(`${rel} is not in the reviewed commit; the reviewer needs the brief and its acceptance criteria`);
-  let brief;
-  try {
-    brief = JSON.parse(shown.stdout.replace(/^\uFEFF/, ''));
-  } catch (err) {
-    throw ruleError(`${rel} is not valid JSON: ${err.message}`);
-  }
-  const check = validateContract('task-brief', brief);
-  if (!check.valid) throw ruleError(`${rel} is not a valid task brief: ${check.errors[0].path} ${check.errors[0].message}`);
-  if (brief.task_id !== taskId) throw ruleError(`${rel} is the brief of ${brief.task_id}, not ${taskId}`);
-  return { text: shown.stdout, brief };
+  const found = readBrief(env, { repo, ref: sha, taskId });
+  if (!found) throw ruleError(`${briefPath(taskId)} is not in the reviewed commit; the reviewer needs the brief and its acceptance criteria`);
+  return found;
 }
 
 /** What already ran on `sha`: gate runs, recorded checks and the scenarios of its evidence. */

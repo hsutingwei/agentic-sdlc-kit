@@ -3,6 +3,7 @@
 
 import { parse } from '../../core/cli.mjs';
 import { usageError } from '../../core/errors.mjs';
+import { briefPath } from '../../governance/gate/brief.mjs';
 import { printGateResult } from '../../governance/gate/cli.mjs';
 import { finishWorktree, newWorktree } from '../lib/worktree.mjs';
 
@@ -32,6 +33,16 @@ export async function runWt(argv, { env, out }) {
       out('not merged: the gate did not pass. Fix the branch in the worktree and run wt finish again.');
       return 1;
     }
+    const { scope } = result;
+    if (result.reason === 'scope') {
+      const sha = result.head_sha;
+      out(`not merged: ${scope.outside.length} changed file(s) are outside the scope of ${briefPath(id)}:`);
+      for (const o of scope.outside) out(`  ${o.path}  ${o.reason === 'forbidden' ? `forbidden by ${o.glob}` : 'not in the allowed paths'}`);
+      out('Bring the branch back inside the scope (a new commit needs new reviews), or a human may accept this commit with a passing review:');
+      out(`  asdk task verify ${id} --check review --result pass --executor human --sha ${sha}`);
+      out('then run wt finish again; the commit stays the same while the integration branch does not move.');
+      return 1;
+    }
     if (result.reason === 'reviews') {
       const { reviews, risk, head_sha: sha } = result;
       if (reviews.blocked) out(`not merged: a review of ${sha.slice(0, 12)} failed. Fix the branch (a new commit needs new reviews), or a human may overrule it with a passing review of this commit.`);
@@ -43,6 +54,8 @@ export async function runWt(argv, { env, out }) {
       out('then run wt finish again; the commit stays the same while the integration branch does not move.');
       return 1;
     }
+    if (!scope) out(`scope not checked: the integration branch has no ${briefPath(id)}`);
+    else if (result.scope_accepted) out(`${scope.outside.length} changed file(s) outside the brief's scope were accepted by a human review: ${scope.outside.map((o) => o.path).join(', ')}`);
     out(`merged ${result.head_sha.slice(0, 12)} as ${result.merge_sha.slice(0, 12)}; worktree and branch removed`);
     return 0;
   }

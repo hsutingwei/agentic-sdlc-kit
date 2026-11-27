@@ -6,7 +6,8 @@
 //
 // The gate runs on the rebased commit, and the merge only happens while the
 // integration branch is still an ancestor of that commit, so the merged tree is
-// exactly the tree the gate verified.
+// exactly the tree the gate verified. A change that leaves the scope of the task's
+// brief is not merged either, until a person has accepted that commit.
 
 import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
@@ -16,9 +17,11 @@ import { findProject, loadConfig, worktreeRoot } from '../../collector/lib/regis
 import { readWorktreeMarker, removeWorktreeMarker, writeWorktreeMarker } from '../../collector/lib/state.mjs';
 import { appendEvent, makeEvent } from '../../collector/lib/store.mjs';
 import { loadTaskRecords } from '../../collector/lib/tasks.mjs';
+import { readBrief } from '../../governance/gate/brief.mjs';
 import { loadGateConfig, runGate } from '../../governance/gate/gate.mjs';
-import { mergeRule, reviewStatus } from '../../governance/gate/policy.mjs';
+import { humanAccepted, mergeRule, reviewStatus } from '../../governance/gate/policy.mjs';
 import { changedPaths, higherRisk, loadRiskPaths, pathMinimum } from '../../governance/gate/risk.mjs';
+import { scopeCheck } from '../../governance/gate/scope.mjs';
 import { loadProfiles } from '../../governance/profiles/profiles.mjs';
 
 const BRANCH_PREFIX = {
@@ -110,10 +113,13 @@ export function newWorktree(env, { taskId, slug, now }) {
  * everything the merge policy asks for that commit's effective risk is there.
  *
  * The policy, gates and risk rules are read from the main checkout, which must be
- * on the integration branch: a branch cannot loosen the rules it is judged by.
+ * on the integration branch: a branch cannot loosen the rules it is judged by. The
+ * task's brief is read from the integration branch for the same reason: every changed
+ * file must be inside its scope, or a person must have accepted that exact commit.
+ * A task without a brief there has no scope to check (`scope: null`).
  *
- * @returns {{ merged: boolean, reason?: 'gate' | 'reviews', gate: object, risk: object, rule: object | null,
- *             reviews?: object, head_sha?: string, merge_sha?: string }}
+ * @returns {{ merged: boolean, reason?: 'gate' | 'scope' | 'reviews', gate: object, risk: object, rule: object | null,
+ *             scope: object | null, scope_accepted?: boolean, reviews?: object, head_sha?: string, merge_sha?: string }}
  */
 export function finishWorktree(env, { taskId, gate: requested, now }) {
   const task = activeTask(env, taskId);
@@ -139,7 +145,8 @@ export function finishWorktree(env, { taskId, gate: requested, now }) {
   const verified = headSha(wtPath, env);
 
   // Effective risk of the rebased branch, by the integration branch's rules.
-  const changed = changedPaths(wtPath, env, { base: git(['rev-parse', `refs/heads/${integration}`], { cwd: root, env }), head: verified });
+  const base = git(['rev-parse', `refs/heads/${integration}`], { cwd: root, env });
+  const changed = changedPaths(wtPath, env, { base, head: verified });
   const minimum = pathMinimum(loadRiskPaths(root), changed).risk;
   const effective = higherRisk(task.risk, minimum);
   // Review counts set to "profile" follow the task's plan profile (ADR-0008).
@@ -149,12 +156,21 @@ export function finishWorktree(env, { taskId, gate: requested, now }) {
     throw ruleError(`the merge policy requires gate ${rule.gate} for ${effective} risk; --gate ${requested} cannot replace it`);
   }
   const gate = rule?.gate ?? requested ?? 'G1';
+  // The scope of the brief as the integration branch has it: a branch cannot widen its own.
+  const brief = readBrief(env, { repo: root, ref: base, taskId });
+  const scope = brief ? scopeCheck(brief.brief, changed) : null;
 
   const run = runGate(env, { gate, cwd: wtPath, taskId, record: true, rulesFrom: root, now: now ? () => now : undefined });
-  const outcome = { gate: run, risk: run.summary.risk, rule, profile: task.profile ?? null, head_sha: verified };
+  const outcome = { gate: run, risk: run.summary.risk, rule, profile: task.profile ?? null, head_sha: verified, scope };
   if (run.summary.result !== 'pass') return { merged: false, reason: 'gate', ...outcome };
+  const verifications = loadTaskRecords(env).get(taskId).verifications;
+  const outside = scope?.outside.length ?? 0;
+  if (outside > 0) {
+    if (!humanAccepted(verifications, verified)) return { merged: false, reason: 'scope', ...outcome };
+    outcome.scope_accepted = true;
+  }
   if (rule) {
-    const reviews = reviewStatus(loadTaskRecords(env).get(taskId).verifications, verified, rule.reviews);
+    const reviews = reviewStatus(verifications, verified, rule.reviews);
     if (!reviews.ok) return { merged: false, reason: 'reviews', reviews, ...outcome };
   }
 
@@ -180,7 +196,7 @@ export function finishWorktree(env, { taskId, gate: requested, now }) {
         project_id: project.id,
         task_id: taskId,
         worktree: taskId,
-        data: { branch, gate, risk: run.summary.risk.effective, head_sha: verified, merge_sha: mergeSha, integration },
+        data: { branch, gate, risk: run.summary.risk.effective, head_sha: verified, merge_sha: mergeSha, integration, scope_checked: scope !== null, outside_scope: outside },
       },
       now,
     ),

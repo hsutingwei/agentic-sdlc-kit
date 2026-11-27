@@ -13,6 +13,9 @@
 // "profile": the verifiers the task's plan profile sets for that risk, or 1 for a
 // task without a profile. A failing review on that commit blocks the merge until
 // a human review passes after it.
+//
+// Whatever the risk, a change that leaves the scope of the task's brief is not
+// merged until a person has accepted that exact commit (see gate/scope.mjs).
 
 import { RISKS } from '../../collector/lib/tasks.mjs';
 
@@ -76,4 +79,10 @@ export function reviewStatus(verifications, sha, need) {
   if (shortHuman) missing.push(`${shortHuman} human review(s)`);
   if (shortAny) missing.push(`${shortAny} review(s) by an agent or a human`);
   return { ok: !blocked && missing.length === 0, missing, blocked, passes: passes.length };
+}
+
+/** Whether a person accepted `sha`: their latest review of that commit passed. */
+export function humanAccepted(verifications, sha) {
+  const mine = verifications.filter((v) => v.check === 'review' && v.sha === sha && v.executor === 'human');
+  return mine.length > 0 && mine.at(-1).result === 'pass';
 }

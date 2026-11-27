@@ -5,18 +5,19 @@ import path from 'node:path';
 import { createSandbox, git, makeDemoRepo, runAsdk } from '../../test/helpers/sandbox.mjs';
 import { registerProject, resolveProject } from '../../collector/lib/registry.mjs';
 import { readWorktreeMarker } from '../../collector/lib/state.mjs';
+import { readEvents } from '../../collector/lib/store.mjs';
 import { loadTasks, startTask, verifyTask } from '../../collector/lib/tasks.mjs';
 import { finishWorktree, newWorktree, slugify } from '../lib/worktree.mjs';
 
 const LOCAL = path.join('.claude', 'settings.local.json');
 
-function setup(t, label) {
+function setup(t, label, risk = 'low') {
   const sb = createSandbox(t, label);
   const root = makeDemoRepo(sb, sb.join('示範 專案'));
   mkdirSync(path.join(root, '.claude'), { recursive: true });
   writeFileSync(path.join(root, LOCAL), '{"hooks":{}}\n'); // ignored by the demo's .gitignore
   registerProject(sb.env, { id: 'demo-api', root, copyFiles: [LOCAL.split(path.sep).join('/')] });
-  startTask(sb.env, { taskId: 'DEMO-001', cwd: root, type: 'feature', risk: 'low' });
+  startTask(sb.env, { taskId: 'DEMO-001', cwd: root, type: 'feature', risk });
   return { sb, root };
 }
 
@@ -122,9 +123,9 @@ test('asdk wt new and wt finish', (t) => {
 });
 
 test('high risk needs an agent and a human review of the exact commit', (t) => {
-  const { sb, root } = setup(t, 'wt-high');
+  const { sb, root } = setup(t, 'wt-high', 'high'); // declared high; the change stays inside the brief's scope
   const wt = newWorktree(sb.env, { taskId: 'DEMO-001' });
-  commitIn(sb, wt.path, '.claude/agents/reviewer.md', '---\nname: reviewer\ndescription: Reviews a diff.\ntools: Read, Grep, Glob\n---\n\nReview it.\n', 'chore: add a reviewer agent');
+  commitIn(sb, wt.path, 'src/due.mjs', 'export const isOverdue = (d, today) => d < today;\n', 'feat: add isOverdue');
 
   const first = finishWorktree(sb.env, { taskId: 'DEMO-001' });
   assert.deepEqual([first.merged, first.reason, first.risk.effective, first.gate.summary.gate], [false, 'reviews', 'high', 'G2']);
@@ -179,4 +180,92 @@ test('review counts set to "profile" follow the task profile', (t) => {
   const r = runAsdk(sb, ['wt', 'finish', 'DEMO-002'], { cwd: root });
   assert.equal(r.status, 0, r.stdout + r.stderr);
   assert.match(r.stdout, /merged /);
+});
+
+test('a change outside the brief\'s scope is not merged, whatever the risk, until a person accepts that commit', (t) => {
+  const { sb, root } = setup(t, 'wt-scope');
+  const wt = newWorktree(sb.env, { taskId: 'DEMO-001' });
+  commitIn(sb, wt.path, 'src/due.mjs', 'export const isOverdue = (d, today) => d < today;\n', 'feat: add isOverdue');
+  commitIn(sb, wt.path, '說明 筆記.md', '# notes\n', 'docs: notes nobody asked for');
+
+  const first = finishWorktree(sb.env, { taskId: 'DEMO-001' });
+  assert.deepEqual([first.merged, first.reason, first.risk.effective, first.gate.summary.result], [false, 'scope', 'low', 'pass']);
+  assert.deepEqual(first.scope.outside, [{ path: '說明 筆記.md', reason: 'not_allowed' }]);
+  assert.equal(first.scope.changed, 2);
+  assert.equal(existsSync(wt.path), true, 'the worktree stays');
+  const sha = first.head_sha;
+
+  // An agent's review does not clear it, nor does a person's failing one.
+  verifyTask(sb.env, { taskId: 'DEMO-001', check: 'review', result: 'pass', executor: 'agent', sha });
+  assert.equal(finishWorktree(sb.env, { taskId: 'DEMO-001' }).reason, 'scope');
+  verifyTask(sb.env, { taskId: 'DEMO-001', check: 'review', result: 'pass', executor: 'human', sha });
+  verifyTask(sb.env, { taskId: 'DEMO-001', check: 'review', result: 'fail', executor: 'human', sha });
+  assert.equal(finishWorktree(sb.env, { taskId: 'DEMO-001' }).reason, 'scope', 'the latest review by a person decides');
+
+  verifyTask(sb.env, { taskId: 'DEMO-001', check: 'review', result: 'pass', executor: 'human', sha });
+  const done = finishWorktree(sb.env, { taskId: 'DEMO-001' });
+  assert.deepEqual([done.merged, done.scope_accepted, done.head_sha], [true, true, sha]);
+  assert.equal(existsSync(path.join(root, '說明 筆記.md')), true);
+  const finish = readEvents(sb.env).events.find((e) => e.event === 'wt.finish');
+  assert.deepEqual([finish.data.scope_checked, finish.data.outside_scope], [true, 1]);
+});
+
+test('the scope is the integration branch\'s: a branch cannot widen its own brief, and a deleted file counts', (t) => {
+  const { sb } = setup(t, 'wt-scope-brief');
+  const wt = newWorktree(sb.env, { taskId: 'DEMO-001' });
+  const briefFile = path.join(wt.path, 'briefs', 'DEMO-001.json');
+  const widened = JSON.parse(readFileSync(briefFile, 'utf8'));
+  widened.scope = { allowed_paths: ['**'], forbidden_paths: [] };
+  commitIn(sb, wt.path, 'briefs/DEMO-001.json', JSON.stringify(widened, null, 2), 'chore: widen the scope');
+  git(sb, wt.path, 'rm', '-q', 'README.md');
+  git(sb, wt.path, 'commit', '-q', '-m', 'docs: drop the readme');
+
+  const result = finishWorktree(sb.env, { taskId: 'DEMO-001' });
+  assert.deepEqual([result.merged, result.reason], [false, 'scope']);
+  assert.deepEqual(result.scope.outside, [
+    { path: 'README.md', reason: 'not_allowed' },
+    { path: 'briefs/DEMO-001.json', reason: 'forbidden', glob: 'briefs/**' },
+  ]);
+});
+
+test('a task without a brief on the integration branch has no scope to check; a damaged brief there stops the merge', (t) => {
+  const { sb, root } = setup(t, 'wt-scope-none');
+  startTask(sb.env, { taskId: 'DEMO-002', cwd: root, type: 'docs', risk: 'low' });
+  const wt = newWorktree(sb.env, { taskId: 'DEMO-002' });
+  // A brief the branch brings itself is not the integration branch's, so it sets no scope.
+  const own = JSON.parse(readFileSync(path.join(root, 'briefs', 'DEMO-001.json'), 'utf8'));
+  commitIn(sb, wt.path, 'briefs/DEMO-002.json', JSON.stringify({ ...own, task_id: 'DEMO-002' }, null, 2), 'chore: a brief of its own');
+  commitIn(sb, wt.path, 'docs/notes.md', '# notes\n', 'docs: notes');
+  const r = runAsdk(sb, ['wt', 'finish', 'DEMO-002'], { cwd: root });
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.match(r.stdout, /scope not checked: the integration branch has no briefs\/DEMO-002\.json/);
+  assert.match(r.stdout, /merged [0-9a-f]{12} as [0-9a-f]{12}/);
+  const finish = readEvents(sb.env).events.find((e) => e.event === 'wt.finish');
+  assert.deepEqual([finish.data.scope_checked, finish.data.outside_scope], [false, 0]);
+
+  commitIn(sb, root, 'briefs/DEMO-001.json', '{ not json', 'chore: damage the brief');
+  const wt1 = newWorktree(sb.env, { taskId: 'DEMO-001' });
+  commitIn(sb, wt1.path, 'src/due.mjs', 'export const x = 1;\n');
+  assert.throws(() => finishWorktree(sb.env, { taskId: 'DEMO-001' }), /briefs\/DEMO-001\.json is not valid JSON/);
+  assert.equal(existsSync(wt1.path), true);
+});
+
+test('asdk wt finish names the files outside the scope and how a person accepts them', (t) => {
+  const { sb, root } = setup(t, 'wt-cli-scope');
+  const wt = newWorktree(sb.env, { taskId: 'DEMO-001' });
+  commitIn(sb, wt.path, 'briefs/extra.json', '{}\n', 'chore: another brief');
+  commitIn(sb, wt.path, 'docs/說明 筆記.md', '# notes\n', 'docs: notes');
+  const blocked = runAsdk(sb, ['wt', 'finish', 'DEMO-001'], { cwd: root });
+  assert.equal(blocked.status, 1, blocked.stdout + blocked.stderr);
+  assert.match(blocked.stdout, /not merged: 2 changed file\(s\) are outside the scope of briefs\/DEMO-001\.json:/);
+  assert.match(blocked.stdout, / {2}briefs\/extra\.json {2}forbidden by briefs\/\*\*/);
+  assert.match(blocked.stdout, / {2}docs\/說明 筆記\.md {2}not in the allowed paths/);
+  const command = /asdk (task verify DEMO-001 --check review --result pass --executor human --sha [0-9a-f]{40})/.exec(blocked.stdout);
+  assert.ok(command, blocked.stdout);
+
+  assert.equal(runAsdk(sb, command[1].split(' '), { cwd: root }).status, 0);
+  const merged = runAsdk(sb, ['wt', 'finish', 'DEMO-001'], { cwd: root });
+  assert.equal(merged.status, 0, merged.stdout + merged.stderr);
+  assert.match(merged.stdout, /2 changed file\(s\) outside the brief's scope were accepted by a human review: briefs\/extra\.json, docs\/說明 筆記\.md/);
+  assert.match(merged.stdout, /merged [0-9a-f]{12} as [0-9a-f]{12}/);
 });

@@ -1,4 +1,4 @@
-// E1 analysis: one row per finished run, joined from the experiment log and the
+// An experiment's analysis: one row per finished run, joined from the experiment log and the
 // kit's own report of that run, then compared by profile. A run is finished when
 // its agent is; what came after (the hidden tests on its commit, the reviewer
 // agent, a person's review) fills in the columns it has. The reviewer agent's
@@ -177,7 +177,7 @@ const cell = (v) => (v === null || v === undefined ? '' : String(v));
 
 export function summaryMarkdown(plan, rows, profiles) {
   const n = (pick) => rows.filter(pick).length;
-  const lines = ['# E1 results', '', `Runs finished: ${rows.length} of ${plan.runs.length} planned (seed ${plan.seed}).`];
+  const lines = [`# ${(plan.suite ?? 'e1').toUpperCase()} results`, '', `Runs finished: ${rows.length} of ${plan.runs.length} planned (seed ${plan.seed}).`];
   lines.push(`Hidden tests run on ${n((r) => r.hidden_tests)}, reviewer agent on ${n((r) => r.reviewer_status)}, reviewed by a person ${n((r) => r.decision)}.`, '');
 
   const a = reviewerAgainstHidden(rows);

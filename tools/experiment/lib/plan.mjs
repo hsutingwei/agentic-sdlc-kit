@@ -1,8 +1,9 @@
-// The E1 run plan and its log.
+// An experiment's run plan and its log.
 //
 // An experiment lives in its own folder, never in ~/.agentic-metrics:
 //
-//   plan.json         which task runs with which profile, in which order (seeded)
+//   plan.json         which task runs with which profile, in which order (seeded),
+//                     and the suite the tasks come from
 //   runs.jsonl        what happened, appended one line at a time; state is derived
 //   bin/              an `asdk` command for the agent (the verify skill calls it)
 //   runs/<run>/       one demo repository, worktree root and metrics folder per run
@@ -68,7 +69,7 @@ export function savePlan(dir, plan) {
 }
 
 export function loadPlan(dir) {
-  if (!existsSync(planFile(dir))) throw new Error(`no experiment in ${dir}; run "e1 init" first`);
+  if (!existsSync(planFile(dir))) throw new Error(`no experiment in ${dir}; run "init" first`);
   return JSON.parse(readFileSync(planFile(dir), 'utf8'));
 }
 

@@ -8,6 +8,9 @@ import { PassThrough } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 import { createSandbox } from './helpers/sandbox.mjs';
 import { main } from '../tools/experiment/e1.mjs';
+import { listTaskIds, loadTask } from '../tools/experiment/lib/catalogue.mjs';
+import { createMain } from '../tools/experiment/lib/cli.mjs';
+import { savePlan } from '../tools/experiment/lib/plan.mjs';
 
 const FAKE = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures', 'fake-claude.mjs');
 
@@ -22,6 +25,7 @@ test('init, pilot run, blind review, status and analysis', async (t) => {
   assert.equal(await e1(['init', dir, '--seed', '11']), 0);
   assert.match(lines.at(-1), /planned 42 runs .* the first 3 are the pilot \(DEMO-102\)/);
   await assert.rejects(e1(['init', dir]), /never replaced/);
+  assert.equal(JSON.parse(readFileSync(path.join(dir, 'plan.json'), 'utf8')).suite, 'e1');
 
   assert.equal(await e1(['run', dir, '--pilot', '--claude', FAKE]), 0);
   assert.equal(lines.filter((l) => /^r0[123] DEMO-102: gate passed, 1 attempt\(s\)/.test(l)).length, 3);
@@ -64,4 +68,27 @@ test('init, pilot run, blind review, status and analysis', async (t) => {
   assert.match(summary, /Review time left out for 1 run\(s\)/);
   const timed = profiles.slice(1).map((l) => Number(l.split(',')[profiles[0].replace(/^\uFEFF/, '').split(',').indexOf('reviews_timed')]));
   assert.deepEqual(timed.sort(), [0, 1, 1], 'one pilot run per profile, one of them untimed');
+});
+
+test('an experiment folder belongs to one suite; a plan without a suite is E1', async (t) => {
+  const sb = createSandbox(t, 'e1-suite');
+  const lines = [];
+  const io = { out: (l) => lines.push(l), baseEnv: sb.env, output: new PassThrough() };
+  const other = createMain({ name: 'e9', seed: 3, plan: (seed) => ({ plan: { seed, pilot: null, runs: [] }, note: 'nothing to run' }) });
+
+  const old = sb.join('舊 實驗');
+  savePlan(old, { seed: 1, pilot: 'DEMO-101', runs: [] }); // as plans were saved before there were suites
+  assert.equal(await main(['status', old], io), 0);
+  await assert.rejects(other(['status', old], io), /holds an e1 experiment; use e1\.mjs/);
+
+  const mine = sb.join('新 實驗');
+  assert.equal(await other(['init', mine], io), 0);
+  assert.match(lines.at(-1), /planned 0 runs in .* \(seed 3\); nothing to run/);
+  await assert.rejects(main(['status', mine], io), /holds an e9 experiment; use e9\.mjs/);
+  await assert.rejects(other(['run', mine, '--pilot'], io), /no pilot runs of its own/);
+  await assert.rejects(other(['nope', mine], io), /usage: e9\.mjs init\|run/);
+
+  assert.throws(() => listTaskIds('nope'), /unknown suite "nope"/);
+  assert.throws(() => loadTask('DEMO-999'), /no task DEMO-999 in any suite/);
+  assert.deepEqual([loadTask('DEMO-101').suite, loadTask('DEMO-101').base], ['e1', []]);
 });

@@ -1,4 +1,5 @@
-// The E1 task catalogue: tools/experiment/tasks/<TASK-ID>/
+// The task catalogue. Tasks come in suites, one per experiment; a task id belongs
+// to one suite only. E1's tasks are in tools/experiment/tasks/<TASK-ID>/:
 //
 //   brief.json   the task brief the agent gets (core contract task-brief)
 //   setup/       files laid over the demo before the task starts, for example a
@@ -18,8 +19,18 @@ import { fileURLToPath } from 'node:url';
 import { git } from '../../../core/git.mjs';
 import { validateContract } from '../../../core/validate.mjs';
 
-export const TASKS_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'tasks');
+const HERE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+// `tasks` holds the suite's task folders. `base`, when a suite has one, is laid over
+// the demo before a task's own setup: the starting point all its tasks share.
+export const SUITES = {
+  e1: { tasks: path.join(HERE, 'tasks'), base: null },
+};
 const PARTS = ['setup', 'solution', 'hidden'];
+
+function suite(name) {
+  if (!Object.hasOwn(SUITES, name)) throw new Error(`unknown suite "${name}"; there are: ${Object.keys(SUITES).join(', ')}`);
+  return SUITES[name];
+}
 
 function filesUnder(dir, base = dir) {
   if (!existsSync(dir)) return [];
@@ -31,17 +42,21 @@ function filesUnder(dir, base = dir) {
     });
 }
 
-export function listTaskIds() {
-  return readdirSync(TASKS_DIR).filter((d) => existsSync(path.join(TASKS_DIR, d, 'brief.json'))).sort();
+export function listTaskIds(suiteName = 'e1') {
+  const { tasks } = suite(suiteName);
+  if (!existsSync(tasks)) return [];
+  return readdirSync(tasks).filter((d) => existsSync(path.join(tasks, d, 'brief.json'))).sort();
 }
 
 export function loadTask(id) {
-  const dir = path.join(TASKS_DIR, id);
+  const suiteName = Object.keys(SUITES).find((name) => existsSync(path.join(SUITES[name].tasks, id, 'brief.json')));
+  if (!suiteName) throw new Error(`no task ${id} in any suite`);
+  const dir = path.join(SUITES[suiteName].tasks, id);
   const brief = JSON.parse(readFileSync(path.join(dir, 'brief.json'), 'utf8'));
   const check = validateContract('task-brief', brief);
   if (!check.valid) throw new Error(`${id}/brief.json: ${check.errors[0].path} ${check.errors[0].message}`);
   if (brief.task_id !== id) throw new Error(`${id}/brief.json names task ${brief.task_id}`);
-  const task = { id, dir, brief };
+  const task = { id, dir, brief, suite: suiteName, base: SUITES[suiteName].base ? filesUnder(SUITES[suiteName].base) : [] };
   for (const part of PARTS) task[part] = filesUnder(path.join(dir, part));
   if (task.hidden.length === 0) throw new Error(`${id}: no hidden tests`);
   if (task.solution.length === 0) throw new Error(`${id}: no reference solution`);
@@ -60,11 +75,12 @@ export function applyOverlay(files, repo) {
 
 const fictional = { GIT_AUTHOR_NAME: 'Demo Dev', GIT_AUTHOR_EMAIL: 'dev@example.invalid', GIT_COMMITTER_NAME: 'Demo Dev', GIT_COMMITTER_EMAIL: 'dev@example.invalid' };
 
-/** Puts the brief and the setup files on dev as one commit: the task's starting point. */
+/** Puts the brief, the suite's base and the setup files on dev as one commit: the task's starting point. */
 export function prepareBase(env, { task, repo }) {
   const briefFile = path.join(repo, 'briefs', `${task.id}.json`);
   mkdirSync(path.dirname(briefFile), { recursive: true });
   writeFileSync(briefFile, `${JSON.stringify(task.brief, null, 2)}\n`);
+  applyOverlay(task.base, repo);
   applyOverlay(task.setup, repo);
   const genv = { ...env, ...fictional };
   git(['add', '-A'], { cwd: repo, env: genv });

@@ -1,5 +1,6 @@
 // The task catalogue. Tasks come in suites, one per experiment; a task id belongs
-// to one suite only. E1's tasks are in tools/experiment/tasks/<TASK-ID>/:
+// to one suite only. E1's tasks are in tools/experiment/tasks/<TASK-ID>/, E2's
+// in tools/experiment/suites/e2/tasks/<TASK-ID>/:
 //
 //   brief.json   the task brief the agent gets (core contract task-brief)
 //   setup/       files laid over the demo before the task starts, for example a
@@ -24,6 +25,8 @@ const HERE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 // the demo before a task's own setup: the starting point all its tasks share.
 export const SUITES = {
   e1: { tasks: path.join(HERE, 'tasks'), base: null },
+  // E2 starts from a larger demo: more modules, a data file, more of an HTTP contract.
+  e2: { tasks: path.join(HERE, 'suites', 'e2', 'tasks'), base: path.join(HERE, 'suites', 'e2', 'base') },
 };
 const PARTS = ['setup', 'solution', 'hidden'];
 
@@ -42,6 +45,12 @@ function filesUnder(dir, base = dir) {
     });
 }
 
+/** The files a suite lays over the demo before any of its tasks: none for a suite without a base. */
+export function baseFiles(suiteName) {
+  const { base } = suite(suiteName);
+  return base ? filesUnder(base) : [];
+}
+
 export function listTaskIds(suiteName = 'e1') {
   const { tasks } = suite(suiteName);
   if (!existsSync(tasks)) return [];
@@ -56,7 +65,7 @@ export function loadTask(id) {
   const check = validateContract('task-brief', brief);
   if (!check.valid) throw new Error(`${id}/brief.json: ${check.errors[0].path} ${check.errors[0].message}`);
   if (brief.task_id !== id) throw new Error(`${id}/brief.json names task ${brief.task_id}`);
-  const task = { id, dir, brief, suite: suiteName, base: SUITES[suiteName].base ? filesUnder(SUITES[suiteName].base) : [] };
+  const task = { id, dir, brief, suite: suiteName, base: baseFiles(suiteName) };
   for (const part of PARTS) task[part] = filesUnder(path.join(dir, part));
   if (task.hidden.length === 0) throw new Error(`${id}: no hidden tests`);
   if (task.solution.length === 0) throw new Error(`${id}: no reference solution`);

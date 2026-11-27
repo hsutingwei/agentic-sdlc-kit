@@ -18,9 +18,14 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 // examples/ holds sample projects that run their own tests through the gates.
 const SKIP_DIRS = new Set(['.git', 'node_modules', 'fixtures', 'examples', 'coverage']);
-// The E1 task catalogue holds hidden tests and reference solutions as data; its own
-// test (test/experiment-tasks.test.mjs) runs them inside throw-away demo repositories.
-const SKIP_PATHS = new Set([path.join(ROOT, 'tools', 'experiment', 'tasks'), path.join(ROOT, 'skill-regression', 'cases')]);
+// The task catalogues hold hidden tests, reference solutions and the E2 starting point
+// as data; their own tests (test/experiment-*.test.mjs) run them inside throw-away
+// demo repositories.
+const SKIP_PATHS = new Set([
+  path.join(ROOT, 'tools', 'experiment', 'tasks'),
+  path.join(ROOT, 'tools', 'experiment', 'suites'),
+  path.join(ROOT, 'skill-regression', 'cases'),
+]);
 const TEST_FILE = /\.test\.mjs$/;
 
 function findTestFiles(dir, found = []) {

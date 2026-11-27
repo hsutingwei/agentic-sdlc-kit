@@ -1,7 +1,9 @@
-// E1 after the runs: hidden tests on the commit of every run, without a review.
+// E1 after the runs: hidden tests and a reviewer agent on the commit of every run,
+// with the scripted agent and the scripted reviewer.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { PassThrough } from 'node:stream';
 import { fileURLToPath } from 'node:url';
@@ -10,12 +12,14 @@ import { git } from '../core/git.mjs';
 import { loadTasks } from '../collector/lib/tasks.mjs';
 import { main } from '../tools/experiment/e1.mjs';
 import { buildPlan, runStates, savePlan } from '../tools/experiment/lib/plan.mjs';
-import { checkRun, committedRuns, pendingChecks } from '../tools/experiment/lib/retro.mjs';
+import { agentReviewRun, checkRun, committedRuns, pendingAgentReviews, pendingChecks, reviewBase } from '../tools/experiment/lib/retro.mjs';
 import { pendingReviews } from '../tools/experiment/lib/review.mjs';
 import { executeRun } from '../tools/experiment/lib/run.mjs';
 
 const FAKE = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures', 'fake-claude.mjs');
 const claude = { command: process.execPath, args: [FAKE] };
+const REVIEWER = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures', 'fake-reviewer.mjs');
+const reviewer = { command: process.execPath, args: [REVIEWER] };
 const TASKS = Array.from({ length: 12 }, (_, i) => `DEMO-${101 + i}`);
 
 function setup(t, label) {
@@ -59,4 +63,63 @@ test('the hidden tests run on the commit of each run, merged or not, and change 
   lines.length = 0;
   await main(['check', dir], { out: (l) => lines.push(l), baseEnv: sb.env, output: new PassThrough() });
   assert.deepEqual(lines, ['4 run(s) checked: 2 pass their hidden tests, 2 fail'], 'a second check runs nothing again');
+});
+
+test('one reviewer agent reviews the commit of each run, merged or not, and records nothing in the run', async (t) => {
+  const { sb, dir, run, metricsEnv } = setup(t, 'e1-retro-review');
+  run('r01', 'DEMO-101', 'pro', 'solve'); // low: merged by the runner
+  run('r02', 'DEMO-102', 'ultra', 'solve'); // medium: not merged
+  run('r03', 'DEMO-109', 'max', 'shallow');
+  run('r04', 'DEMO-108', 'pro', 'solve');
+  const seen = sb.join('reviewer-args.jsonl');
+  const env = (mode) => ({ ...sb.env, FAKE_REVIEW_MODE: mode, FAKE_REVIEW_ARGS_FILE: seen });
+  const state = (r) => runStates(dir).get(r);
+  const repoOf = (r) => path.join(dir, 'runs', r, 'demo-api');
+  const rev = (r, ref) => git(['rev-parse', ref], { cwd: repoOf(r), env: sb.env });
+
+  // A merged change is compared with dev as it was before the merge, an unmerged one with dev.
+  assert.equal(state('r01').merged, true);
+  assert.equal(reviewBase(repoOf('r01'), sb.env, state('r01').head_sha), rev('r01', `${state('r01').merge_sha}^1`));
+  assert.equal(reviewBase(repoOf('r02'), sb.env, state('r02').head_sha), rev('r02', 'dev'));
+  assert.deepEqual(pendingAgentReviews(dir).map((s) => s.run), ['r01', 'r02', 'r03', 'r04']);
+
+  const before = { dev: rev('r02', 'dev'), checks: loadTasks(metricsEnv('r02')).get('DEMO-102').verifications.length };
+  const merged = agentReviewRun(dir, state('r01'), { baseEnv: env('accept'), claude: reviewer }).agent_review;
+  assert.deepEqual([merged.status, merged.decision, merged.act_on, merged.model, merged.effort, merged.cost_usd], ['done', 'accept', 0, 'sonnet', 'high', 0.02]);
+  assert.deepEqual(merged.quota, { seven_day: 21 });
+  assert.match(merged.reviewer_sha256, /^[0-9a-f]{64}$/);
+  const proved = agentReviewRun(dir, state('r02'), { baseEnv: env('prove'), claude: reviewer }).agent_review;
+  assert.deepEqual([proved.decision, proved.stated, proved.act_on, proved.proven, proved.consider, proved.noted], ['concerns', 'concerns', 1, 1, 1, 1]);
+
+  // The same reviewer whatever profile made the change, and a packet with the whole change.
+  const calls = readFileSync(seen, 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+  assert.equal(calls.length, 2);
+  for (const c of calls) {
+    assert.deepEqual([c.args[c.args.indexOf('--model') + 1], c.args[c.args.indexOf('--effort') + 1]], ['sonnet', 'high']);
+    assert.ok(c.diff > 0, 'the diff is not empty, also for the merged change');
+  }
+  const kept = JSON.parse(readFileSync(path.join(dir, 'runs', 'r02', 'agent-review', 'result.json'), 'utf8'));
+  assert.equal(kept.final.findings.find((f) => f.id === 'F1').proven, true);
+  assert.equal(JSON.stringify(state('r02').agent_review).includes('The list is wrong'), false, 'the log holds numbers, not findings');
+  assert.equal(rev('r02', 'dev'), before.dev, 'nothing is merged');
+  assert.equal(loadTasks(metricsEnv('r02')).get('DEMO-102').verifications.length, before.checks, 'no review is recorded in the run');
+  assert.equal(state('r02').stage, 'review');
+
+  // An answer that is no verdict is a result; a run that could not finish is tried again.
+  assert.equal(agentReviewRun(dir, state('r03'), { baseEnv: env('garbage'), claude: reviewer }).agent_review.status, 'invalid');
+  const failed = agentReviewRun(dir, state('r04'), { baseEnv: env('error'), claude: reviewer }).agent_review;
+  assert.deepEqual([failed.status, failed.decision], ['failed', null]);
+  assert.deepEqual(pendingAgentReviews(dir).map((s) => s.run), ['r04']);
+
+  const lines = [];
+  const e1 = (args) => main(args, { out: (l) => lines.push(l), baseEnv: env('accept'), output: new PassThrough() });
+  assert.equal(await e1(['agent-review', dir, '--claude', REVIEWER, '--limit', '0']), 0);
+  assert.deepEqual(lines, ['4 of 4 run(s) reviewed: 1 accepted, 3 left for a person']);
+  assert.equal(await e1(['agent-review', dir, '--claude', REVIEWER, '--model', 'haiku', '--effort', 'low', '--no-prove']), 0);
+  assert.match(lines.at(-2), /^r04 DEMO-108: accept, 0 act_on \(0 proven\), \d+ s, list price USD 0\.02$/);
+  assert.equal(lines.at(-1), '4 of 4 run(s) reviewed: 2 accepted, 2 left for a person');
+  assert.deepEqual([state('r04').agent_review.model, state('r04').agent_review.effort], ['haiku', 'low']);
+  assert.deepEqual(pendingAgentReviews(dir), []);
+  await e1(['status', dir]);
+  assert.match(lines.at(-1), /last quota seen: seven_day 21%/, 'the quota check reads what the reviewer runs reported');
 });

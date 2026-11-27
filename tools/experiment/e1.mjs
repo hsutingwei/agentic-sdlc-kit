@@ -5,6 +5,7 @@
 //   node tools/experiment/e1.mjs run <dir> [--pilot] [--limit <n>] [--claude <path>]
 //   node tools/experiment/e1.mjs review <dir>
 //   node tools/experiment/e1.mjs check <dir>
+//   node tools/experiment/e1.mjs agent-review <dir> [--limit <n>] [--claude <path>] [--model <m>] [--effort <e>] [--no-prove]
 //   node tools/experiment/e1.mjs status <dir>
 //   node tools/experiment/e1.mjs analyze <dir>
 //   node tools/experiment/e1.mjs exclude-time <dir> <run> --reason <text>
@@ -13,6 +14,8 @@
 // is nearly full and continues where it stopped the next time. `review` needs you:
 // one change at a time, without the profile, timed. `check` needs nobody: it runs
 // each task's hidden tests on the commit its run left, without merging anything.
+// `agent-review` uses your subscription too: one sterile reviewer agent per run,
+// the same reviewer for every profile, stopping near the quota limit like `run`.
 
 import { existsSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
@@ -23,13 +26,14 @@ import { parseArgs } from 'node:util';
 import { writeAnalysis } from './lib/analyze.mjs';
 import { listTaskIds } from './lib/catalogue.mjs';
 import { buildPlan, loadPlan, readLog, runStates, savePlan } from './lib/plan.mjs';
-import { checkRun, committedRuns, pendingChecks } from './lib/retro.mjs';
+import { findClaude } from '../../adapters/claude-code/sterile.mjs';
+import { agentReviewRun, checkRun, committedRuns, pendingAgentReviews, pendingChecks } from './lib/retro.mjs';
 import { beginReview, completeReview, excludeReviewTime, pauseReview, pendingReviews, reviewMaterial } from './lib/review.mjs';
 import { executeRun, quotaAllows, writeShims } from './lib/run.mjs';
 
 export const PILOT = 'DEMO-102';
 export const REPEATS = ['DEMO-101', 'DEMO-108', 'DEMO-112'].map((task) => ({ task, profile: 'max', count: 2 }));
-const USAGE = 'usage: e1.mjs init|run|review|check|status|analyze|exclude-time <dir> [options]';
+const USAGE = 'usage: e1.mjs init|run|review|check|agent-review|status|analyze|exclude-time <dir> [options]';
 
 function defaultClaude() {
   const local = path.join(os.homedir(), '.local', 'bin', process.platform === 'win32' ? 'claude.exe' : 'claude');
@@ -37,8 +41,8 @@ function defaultClaude() {
 }
 
 function lastQuota(dir) {
-  const withQuota = readLog(dir).filter((r) => r.quota && Object.keys(r.quota).length);
-  return withQuota.at(-1)?.quota ?? {};
+  const seen = readLog(dir).map((r) => r.agent_review?.quota ?? r.quota).filter((q) => q && Object.keys(q).length);
+  return seen.at(-1) ?? {};
 }
 
 export async function main(argv, { out = console.log, input = process.stdin, output = process.stdout, baseEnv = process.env } = {}) {
@@ -47,7 +51,7 @@ export async function main(argv, { out = console.log, input = process.stdin, out
   const dir = path.resolve(dirArg);
   const { values, positionals } = parseArgs({
     args: rest,
-    options: { seed: { type: 'string' }, pilot: { type: 'boolean' }, limit: { type: 'string' }, claude: { type: 'string' }, reason: { type: 'string' } },
+    options: { seed: { type: 'string' }, pilot: { type: 'boolean' }, limit: { type: 'string' }, claude: { type: 'string' }, reason: { type: 'string' }, model: { type: 'string' }, effort: { type: 'string' }, 'no-prove': { type: 'boolean' } },
     allowPositionals: command === 'exclude-time',
     strict: true,
   });
@@ -158,6 +162,28 @@ export async function main(argv, { out = console.log, input = process.stdin, out
     }
     const all = committedRuns(dir).map((s) => s.hidden_check.result);
     out(`${all.length} run(s) checked: ${all.filter((r) => r === 'pass').length} pass their hidden tests, ${all.filter((r) => r !== 'pass').length} fail`);
+    return 0;
+  }
+
+  if (command === 'agent-review') {
+    const claude = findClaude(baseEnv, values.claude);
+    const limit = values.limit === undefined ? Infinity : Number(values.limit);
+    let done = 0;
+    for (const state of pendingAgentReviews(dir)) {
+      if (done >= limit) break;
+      const allowed = quotaAllows(lastQuota(dir));
+      if (!allowed.ok) {
+        out(`stopped: ${allowed.over.join(', ')}. Run again after the window resets; finished reviews are kept.`);
+        return 0;
+      }
+      const { agent_review: r } = agentReviewRun(dir, state, { baseEnv, claude, model: values.model, effort: values.effort, prove: !values['no-prove'] });
+      const what = r.status === 'done' ? `${r.decision}, ${r.act_on} act_on (${r.proven} proven)` : `${r.status}: ${r.problem}`;
+      out(`${state.run} ${state.task}: ${what}, ${Math.round(r.wall_ms / 1000)} s, list price USD ${r.cost_usd.toFixed(2)}`);
+      done++;
+    }
+    const all = committedRuns(dir).filter((s) => s.agent_review?.sha === s.head_sha);
+    const accepted = all.filter((s) => s.agent_review.decision === 'accept').length;
+    out(`${all.length} of ${committedRuns(dir).length} run(s) reviewed: ${accepted} accepted, ${all.length - accepted} left for a person`);
     return 0;
   }
 

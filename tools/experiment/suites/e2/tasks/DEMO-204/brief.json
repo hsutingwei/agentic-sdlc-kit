@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "task_id": "DEMO-204",
+  "project_id": "demo-api",
+  "title": "Quick changes can leave an older state in the data file",
+  "goal": "What is on disk after the last change is the last state, whatever the disk does.",
+  "type": "bugfix",
+  "risk": "medium",
+  "assignment": {
+    "role": "implementer",
+    "model_tier": "standard",
+    "isolation": "fresh"
+  },
+  "scope": {
+    "allowed_paths": [
+      "src/**",
+      "test/**"
+    ],
+    "forbidden_paths": [
+      ".asdk/**",
+      ".claude/**",
+      "briefs/**",
+      "AGENTS.md",
+      "CLAUDE.md"
+    ]
+  },
+  "acceptance_criteria": [
+    {
+      "id": "AC1",
+      "text": "Once flush() has resolved, the data file holds the latest state of the store, however long each write takes (reported: two changes close together, and the file kept the first)."
+    },
+    {
+      "id": "AC2",
+      "text": "Writes never overlap: a write starts only after the one before it has finished. Changes made while a write is in flight are saved by one write after it, not by one write per change."
+    },
+    {
+      "id": "AC3",
+      "text": "A write that fails is reported through onError, once, and does not keep later changes from being saved. It is not tried again: the next write is the one the next change causes. flush() resolves all the same; it never rejects."
+    },
+    {
+      "id": "AC4",
+      "text": "persist() keeps its interface: the write and onError options, flush() and stop(). Changes made after stop() are not saved. A test fails without the fix."
+    }
+  ],
+  "base_branch": "dev",
+  "estimate_hours": 2,
+  "context": {
+    "read_first": [
+      "src/storage.mjs",
+      "test/unit/storage.test.mjs"
+    ],
+    "notes": "The write option exists so that a test can decide how long a write takes and whether it fails. Keep node:http and node:fs only; no dependencies."
+  }
+}

@@ -9,6 +9,9 @@
 //                escaped defect
 //   solution/    a reference solution, used only to prove the task can be done
 //                and that its hidden tests tell a solution from the start
+//   naive/       E2 only: the files of a half-done version, laid over the
+//                reference solution; it passes the gates and fails hidden tests,
+//                which is what makes the task hard for a stated reason
 //
 // The catalogue is fictional, like everything else in the demo.
 
@@ -28,7 +31,7 @@ export const SUITES = {
   // E2 starts from a larger demo: more modules, a data file, more of an HTTP contract.
   e2: { tasks: path.join(HERE, 'suites', 'e2', 'tasks'), base: path.join(HERE, 'suites', 'e2', 'base') },
 };
-const PARTS = ['setup', 'solution', 'hidden'];
+const PARTS = ['setup', 'solution', 'naive', 'hidden'];
 
 function suite(name) {
   if (!Object.hasOwn(SUITES, name)) throw new Error(`unknown suite "${name}"; there are: ${Object.keys(SUITES).join(', ')}`);

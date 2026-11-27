@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "task_id": "DEMO-207",
+  "project_id": "demo-api",
+  "title": "Repeat an item every month",
+  "goal": "Monthly chores come back by themselves, on the right day.",
+  "type": "feature",
+  "risk": "medium",
+  "assignment": {
+    "role": "implementer",
+    "model_tier": "standard",
+    "isolation": "fresh"
+  },
+  "scope": {
+    "allowed_paths": [
+      "src/**",
+      "test/**",
+      "README.md"
+    ],
+    "forbidden_paths": [
+      ".asdk/**",
+      ".claude/**",
+      "briefs/**",
+      "AGENTS.md",
+      "CLAUDE.md"
+    ]
+  },
+  "acceptance_criteria": [
+    {
+      "id": "AC1",
+      "text": "An item has repeat: null (the default) or \"monthly\". It can be given wherever an item is created or changed; any other value answers 400. A repeating item needs a due date: asking for repeat without one, or taking the due date away from a repeating item, answers 400."
+    },
+    {
+      "id": "AC2",
+      "text": "When a repeating item goes from not done to done, the next item of its series is created: the same title and repeat, not done, due one month later. The answer is the changed item, as today; the new item is in the list. Marking done an item that is done already creates nothing, and an item that is imported as done creates nothing."
+    },
+    {
+      "id": "AC3",
+      "text": "One month later is the same day of the following month. A month that is too short gives its last day, and the series goes back to its own day afterwards: 2026-01-31, 2026-02-28, 2026-03-31. In a leap year February gives the 29th. December is followed by January of the next year."
+    },
+    {
+      "id": "AC4",
+      "text": "The day of a series is the day of the due date its item had when repeat was set, and is set again whenever the due date of an item of the series is changed."
+    },
+    {
+      "id": "AC5",
+      "text": "repeat and the day of the series survive a restart from the data file. Data files written before this change still load, their items with repeat null. README.md describes repeat."
+    }
+  ],
+  "base_branch": "dev",
+  "estimate_hours": 4,
+  "context": {
+    "read_first": [
+      "src/todos.mjs",
+      "src/dates.mjs",
+      "test/unit/todos.test.mjs",
+      "README.md"
+    ],
+    "notes": "How the series remembers its day is up to you. Keep node:http only; no dependencies. Add tests for every acceptance criterion."
+  }
+}

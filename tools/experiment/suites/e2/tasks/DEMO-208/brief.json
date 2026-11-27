@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "task_id": "DEMO-208",
+  "project_id": "demo-api",
+  "title": "Search misses titles when the query has capital letters",
+  "goal": "People find an item whichever way they type its title.",
+  "type": "bugfix",
+  "risk": "low",
+  "assignment": {
+    "role": "implementer",
+    "model_tier": "standard",
+    "isolation": "fresh"
+  },
+  "scope": {
+    "allowed_paths": [
+      "src/**",
+      "test/**"
+    ],
+    "forbidden_paths": [
+      ".asdk/**",
+      ".claude/**",
+      "briefs/**",
+      "AGENTS.md",
+      "CLAUDE.md"
+    ]
+  },
+  "acceptance_criteria": [
+    {
+      "id": "AC1",
+      "text": "A search ignores letter case in the query and in the title, for every letter and not only A to Z (reported: q=Report finds nothing although an item is titled Quarterly Report; ÉTÉ must find été)."
+    },
+    {
+      "id": "AC2",
+      "text": "A search ignores the Unicode form: a character written as one code point matches the same character written as a letter and a combining mark, and full-width letters and digits match half-width ones (ＡＢＣ１２３ and abc123)."
+    },
+    {
+      "id": "AC3",
+      "text": "Titles are stored and returned exactly as they were entered: searching changes no item. Searches for CJK text work as they do today."
+    },
+    {
+      "id": "AC4",
+      "text": "Tests fail without the fix, for AC1 and for AC2."
+    }
+  ],
+  "base_branch": "dev",
+  "estimate_hours": 0.75,
+  "context": {
+    "read_first": [
+      "src/search.mjs",
+      "test/unit/search.test.mjs"
+    ],
+    "notes": "Find the cause. Keep node:http only; no dependencies."
+  }
+}

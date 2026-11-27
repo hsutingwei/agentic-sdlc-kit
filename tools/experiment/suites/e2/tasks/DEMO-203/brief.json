@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "task_id": "DEMO-203",
+  "project_id": "demo-api",
+  "title": "Give items a priority and move the data file to version 2",
+  "goal": "People mark what matters most, and no data file written by the version before is lost.",
+  "type": "feature",
+  "risk": "high",
+  "assignment": {
+    "role": "implementer",
+    "model_tier": "standard",
+    "isolation": "fresh"
+  },
+  "scope": {
+    "allowed_paths": [
+      "src/**",
+      "test/**",
+      "README.md"
+    ],
+    "forbidden_paths": [
+      ".asdk/**",
+      ".claude/**",
+      "briefs/**",
+      "AGENTS.md",
+      "CLAUDE.md"
+    ]
+  },
+  "acceptance_criteria": [
+    {
+      "id": "AC1",
+      "text": "Every item has a priority: low, normal or high. It can be given wherever an item is created or changed; any other value answers 400. An item created without one gets normal."
+    },
+    {
+      "id": "AC2",
+      "text": "GET /todos takes priority=low|normal|high as one more filter, combined with the others; another value answers 400. GET /summary gains high_open: the number of items that are not done and have priority high."
+    },
+    {
+      "id": "AC3",
+      "text": "The data file is written as version 2, with the priority of each item. A version 1 file still loads: its items get priority normal, and the file itself is left as it is until the next change is saved."
+    },
+    {
+      "id": "AC4",
+      "text": "A file that is neither version 1 nor version 2, and a version 2 file with an item whose priority is missing or not one of the three, is refused like any file that cannot be read: StorageError, nothing written, the file left as it is."
+    },
+    {
+      "id": "AC5",
+      "text": "README.md describes the priority, the filter, high_open and the version 2 file."
+    }
+  ],
+  "base_branch": "dev",
+  "estimate_hours": 4,
+  "context": {
+    "read_first": [
+      "src/todos.mjs",
+      "src/storage.mjs",
+      "test/unit/storage.test.mjs",
+      "README.md"
+    ],
+    "notes": "High risk: this changes the file people keep their data in. Keep the exports of src/storage.mjs (parse, serialize, persist, StorageError, VERSION). Keep node:http only; no dependencies."
+  }
+}

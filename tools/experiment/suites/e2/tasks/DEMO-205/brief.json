@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "task_id": "DEMO-205",
+  "project_id": "demo-api",
+  "title": "Export the list as CSV",
+  "goal": "People open their items in a spreadsheet, and real titles do not break the file.",
+  "type": "feature",
+  "risk": "medium",
+  "assignment": {
+    "role": "implementer",
+    "model_tier": "standard",
+    "isolation": "fresh"
+  },
+  "scope": {
+    "allowed_paths": [
+      "src/**",
+      "test/**",
+      "README.md"
+    ],
+    "forbidden_paths": [
+      ".asdk/**",
+      ".claude/**",
+      "briefs/**",
+      "AGENTS.md",
+      "CLAUDE.md"
+    ]
+  },
+  "acceptance_criteria": [
+    {
+      "id": "AC1",
+      "text": "GET /todos.csv answers 200 with Content-Type text/csv; charset=utf-8 and a UTF-8 body without a byte order mark: the header line id,title,done,due_date, then one line per item in id order. Every line, the last one too, ends with CRLF. done is written true or false; an item without a due date has an empty field."
+    },
+    {
+      "id": "AC2",
+      "text": "A field that contains a comma, a double quote, a carriage return or a line feed is put in double quotes, and every double quote inside it is doubled. No other field is quoted."
+    },
+    {
+      "id": "AC3",
+      "text": "A title that starts with =, +, - or @ gets an apostrophe in front of it, before AC2 is applied, so that a spreadsheet does not run it as a formula."
+    },
+    {
+      "id": "AC4",
+      "text": "The export takes the query parameters of GET /todos and answers bad ones the same way. /todos.csv is a route: another method answers 405. README.md lists it."
+    }
+  ],
+  "base_branch": "dev",
+  "estimate_hours": 2,
+  "context": {
+    "read_first": [
+      "src/server.mjs",
+      "src/query.mjs",
+      "README.md"
+    ],
+    "notes": "Keep node:http only; no dependencies. Add tests for every acceptance criterion."
+  }
+}

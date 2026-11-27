@@ -7,9 +7,11 @@
 //   break-then-fix  first attempt breaks a unit test; the retry applies the solution
 //   break           every attempt breaks a unit test
 //   shallow         a change the gates accept but the hidden tests do not
+//   stray-then-fix  the solution and a file outside the brief's scope; the retry removes the file
+//   stray           the solution and a file outside the brief's scope, every time
 
 import { execFileSync } from 'node:child_process';
-import { appendFileSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { applyOverlay, loadTask } from '../../tools/experiment/lib/catalogue.mjs';
 
@@ -27,6 +29,7 @@ const mode = process.env.FAKE_CLAUDE_MODE ?? 'solve';
 const cwd = process.cwd();
 const git = (...a) => execFileSync('git', a, { cwd, stdio: 'pipe' });
 const broken = path.join(cwd, 'test', 'unit', 'broken.test.mjs');
+const stray = path.join(cwd, 'docs', '筆記 notes.md');
 
 if (mode === 'shallow') {
   appendFileSync(path.join(cwd, 'src', 'todos.mjs'), '// looked at the task\n');
@@ -35,6 +38,12 @@ if (mode === 'shallow') {
 } else {
   rmSync(broken, { force: true });
   applyOverlay(loadTask(id).solution, cwd);
+  if (mode === 'stray' || (mode === 'stray-then-fix' && !retry)) {
+    mkdirSync(path.dirname(stray), { recursive: true });
+    writeFileSync(stray, '# notes nobody asked for\n');
+  } else {
+    rmSync(path.dirname(stray), { recursive: true, force: true });
+  }
 }
 git('add', '-A');
 git('commit', '-q', '-m', `feat: ${id}${retry ? ' (retry)' : ''}`);

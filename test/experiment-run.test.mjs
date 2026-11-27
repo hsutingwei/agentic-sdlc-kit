@@ -33,6 +33,7 @@ test('a low-risk run merges after the gate; the kit records it in the run folder
   assert.match(started.kit_commit, /^[0-9a-f]{40}$/);
   assert.equal(typeof started.kit_dirty, 'boolean');
   assert.deepEqual([rec.stage, rec.first_gate, rec.merged, rec.risk.effective, rec.attempts.length], ['review', 'pass', true, 'low', 1]);
+  assert.deepEqual([rec.first_scope, rec.outside_scope, rec.scope_blocked], ['pass', 0, false]);
   assert.deepEqual(rec.quota, { five_hour: 42, seven_day: 10 });
 
   const env = { ...baseEnv, AGENTIC_METRICS_HOME: path.join(dir, 'runs', 'r01', 'metrics') };
@@ -55,6 +56,7 @@ test('a medium-risk run waits for the human review; a failed gate gets one retry
   const { dir, baseEnv } = setup(t, 'e1-run-retry', 'break-then-fix');
   const rec = executeRun(dir, { run: 'r02', task: 'DEMO-102', profile: 'ultra', repeat: 1, pilot: false }, { baseEnv, claude });
   assert.deepEqual([rec.first_gate, rec.attempts.length, rec.merged, rec.gate_failed, rec.risk.effective], ['fail', 2, false, false, 'medium']);
+  assert.deepEqual([rec.first_scope, rec.outside_scope], ['pass', 0], 'the first change failed the gate inside its scope');
   assert.match(readFileSync(path.join(dir, 'runs', 'r02', 'agent-1.jsonl'), 'utf8'), /"model":"opus"/);
   assert.equal(runStates(dir).get('r02').stage, 'review');
 });
@@ -65,6 +67,29 @@ test('two failed gates end as an escalation, still for the person to look at', (
   assert.deepEqual([rec.stage, rec.gate_failed, rec.attempts.length, rec.merged], ['review', true, 2, false]);
   const env = { ...baseEnv, AGENTIC_METRICS_HOME: path.join(dir, 'runs', 'r03', 'metrics') };
   assert.equal(loadTasks(env).get('DEMO-109').escalations.length, 1);
+});
+
+test('a change outside the brief\'s scope gets one retry with the files named', (t) => {
+  const { sb, dir, baseEnv } = setup(t, 'e1-run-scope', 'stray-then-fix');
+  const argsFile = sb.join('fake-args.jsonl');
+  const rec = executeRun(dir, { run: 'r04', task: 'DEMO-101', profile: 'pro', repeat: 1, pilot: false }, { baseEnv: { ...baseEnv, FAKE_CLAUDE_ARGS_FILE: argsFile }, claude });
+  assert.deepEqual([rec.first_gate, rec.first_scope, rec.outside_scope, rec.attempts.length], ['pass', 'fail', 0, 2]);
+  assert.deepEqual([rec.merged, rec.gate_failed, rec.scope_blocked], [true, false, false]);
+  const retry = readFileSync(argsFile, 'utf8').trim().split('\n').map((l) => JSON.parse(l))[1];
+  const prompt = retry[retry.indexOf('-p') + 1];
+  assert.match(prompt, /^wt finish did not merge your work on briefs\/DEMO-101\.json: the change has files outside the scope/);
+  assert.match(prompt, / {2}docs\/筆記 notes\.md {2}not in the allowed paths$/);
+  assert.equal(existsSync(path.join(dir, 'runs', 'r04', 'demo-api', 'docs')), false, 'the stray file was not merged');
+});
+
+test('a change still outside the scope after the retry is left for a person', (t) => {
+  const { dir, baseEnv } = setup(t, 'e1-run-stray', 'stray');
+  const rec = executeRun(dir, { run: 'r05', task: 'DEMO-101', profile: 'pro', repeat: 1, pilot: false }, { baseEnv, claude });
+  assert.deepEqual([rec.stage, rec.first_gate, rec.first_scope, rec.outside_scope, rec.attempts.length], ['review', 'pass', 'fail', 1, 2]);
+  assert.deepEqual([rec.merged, rec.gate_failed, rec.scope_blocked], [false, false, true]);
+  assert.match(rec.head_sha, /^[0-9a-f]{40}$/);
+  const env = { ...baseEnv, AGENTIC_METRICS_HOME: path.join(dir, 'runs', 'r05', 'metrics') };
+  assert.match(loadTasks(env).get('DEMO-101').escalations[0].reason, /outside the scope of its brief after one retry/);
 });
 
 test('the run environment drops settings that would change the outcome', () => {

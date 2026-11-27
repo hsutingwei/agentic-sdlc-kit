@@ -20,7 +20,7 @@ import { loadPlan, PROFILES, runDir, runStates } from './plan.mjs';
 
 export const RUN_COLUMNS = [
   'run', 'task', 'type', 'risk_declared', 'risk_effective', 'profile', 'repeat', 'pilot',
-  'first_gate', 'attempts', 'escalations', 'decision', 'review_minutes', 'review_time_excluded', 'merged', 'escaped_defects',
+  'first_gate', 'first_scope', 'outside_scope', 'attempts', 'escalations', 'decision', 'review_minutes', 'review_time_excluded', 'merged', 'escaped_defects',
   'hidden_tests', 'reviewer_status', 'reviewer_decision', 'reviewer_act_on', 'reviewer_proven', 'reviewer_outside_scope',
   'reviewer_model', 'reviewer_effort', 'reviewer_wall_s', 'reviewer_cost_usd',
   'estimate_h', 'human_h', 'efficiency', 'data_quality', 'ai_h', 'agent_wall_s', 'list_cost_usd',
@@ -78,6 +78,8 @@ export function runRows(dir, { now = new Date() } = {}) {
       repeat: planned.repeat,
       pilot: planned.pilot,
       first_gate: s.first_gate,
+      first_scope: s.first_scope ?? null,
+      outside_scope: s.outside_scope ?? null,
       attempts: attempts.length,
       escalations: k?.escalations ?? (s.gate_failed ? 1 : 0),
       decision: s.decision ?? null,
@@ -203,10 +205,11 @@ export function summaryMarkdown(plan, rows, profiles) {
   }
   const untimed = rows.filter((r) => r.review_time_excluded).length;
   if (untimed) lines.push('', `Review time left out for ${untimed} run(s); their decisions and checks still count.`);
-  lines.push('', "## By task (H hidden tests; R the reviewer agent's decision; a person's review as minutes with ✓ accepted, ✗ rejected, ! escaped defect)", '');
+  lines.push('', "## By task (S✗ still outside the brief's scope after the retry; H hidden tests; R the reviewer agent's decision; a person's review as minutes with ✓ accepted, ✗ rejected, ! escaped defect)", '');
   lines.push(`| Task | Risk | ${PROFILES.join(' | ')} |`, `|---|---|${PROFILES.map(() => '---').join('|')}|`);
   const mark = (r) => {
     const parts = [];
+    if (r.outside_scope) parts.push('S✗');
     if (r.hidden_tests) parts.push(`H${r.hidden_tests === 'pass' ? '✓' : '✗'}`);
     if (r.reviewer_status) parts.push(`R:${r.reviewer_status === 'done' ? r.reviewer_decision : 'none'}`);
     if (r.decision) parts.push(`${r.review_time_excluded ? 'untimed' : cell(r.review_minutes)} ${r.decision === 'accept' ? '✓' : '✗'}${r.escaped_defects ? '!' : ''}`);

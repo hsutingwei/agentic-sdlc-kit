@@ -118,7 +118,8 @@ export function createMain(suite) {
         out(`${next.run} ${next.task}: running`);
         const rec = executeRun(dir, next, { baseEnv, claude });
         const cost = rec.attempts.reduce((n, a) => n + (a.result?.total_cost_usd ?? 0), 0);
-        out(`${next.run} ${next.task}: gate ${rec.gate_failed ? 'failed twice' : rec.first_gate === 'pass' ? 'passed' : 'passed on retry'}, ${rec.attempts.length} attempt(s), list price USD ${cost.toFixed(2)}, quota ${Object.entries(rec.quota).map(([k, v]) => `${k} ${v}%`).join(' ') || 'unknown'}`);
+        const scope = rec.scope_blocked ? ', still outside the scope' : rec.first_scope === 'fail' ? ', back inside the scope on retry' : '';
+        out(`${next.run} ${next.task}: gate ${rec.gate_failed ? 'failed twice' : rec.first_gate === 'pass' ? 'passed' : 'passed on retry'}${scope}, ${rec.attempts.length} attempt(s), list price USD ${cost.toFixed(2)}, quota ${Object.entries(rec.quota).map(([k, v]) => `${k} ${v}%`).join(' ') || 'unknown'}`);
         done++;
       }
       out(`${done} run(s) finished this time; review them with: node tools/experiment/${script} review "${dir}"`);

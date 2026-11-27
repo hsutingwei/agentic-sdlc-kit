@@ -56,4 +56,16 @@ test('an E2 pilot is a plan of its own; a run starts from the larger demo', asyn
   const summary = readFileSync(path.join(dir, 'analysis', 'summary.md'), 'utf8');
   assert.match(summary, /^# E2 pilot \(not part of the results\)\n\nRuns finished: 1 of 8 planned/);
   assert.match(summary, new RegExp(`\\| ${first.task} \\|.*H✓`));
+
+  // A run whose change stays outside the brief's scope is told so once, then left for a person.
+  const stray = { ...io, baseEnv: { ...io.baseEnv, FAKE_CLAUDE_MODE: 'stray' } };
+  assert.equal(await e2(['run', dir, '--limit', '1', '--claude', FAKE], stray), 0);
+  const second = plan.runs[1];
+  assert.ok(lines.some((l) => l.startsWith(`r02 ${second.task}: gate passed, still outside the scope, 2 attempt(s)`)), lines.join('\n'));
+  assert.equal(await e2(['check', dir], io), 0);
+  assert.equal(await e2(['analyze', dir], io), 0);
+  const [header, ...rows] = readFileSync(path.join(dir, 'analysis', 'runs.csv'), 'utf8').trim().split('\r\n').map((l) => l.split(','));
+  const of = (run, name) => rows.find((row) => row[0] === run)[header.indexOf(name)];
+  assert.deepEqual([of('r01', 'first_scope'), of('r01', 'outside_scope'), of('r02', 'first_scope'), of('r02', 'outside_scope'), of('r02', 'merged')], ['pass', '0', 'fail', '1', 'false']);
+  assert.match(readFileSync(path.join(dir, 'analysis', 'summary.md'), 'utf8'), new RegExp(`\\| ${second.task} \\|.*S✗ H✓`));
 });

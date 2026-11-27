@@ -1,6 +1,8 @@
-// One E1 run: a fresh demo repository, the task's starting point, the profile,
-// a headless Claude Code session in the task worktree, then the gate. A failed
-// gate gets one retry with its output; a second failure is an escalation.
+// One run: a fresh demo repository, the task's starting point, the profile, a
+// headless Claude Code session in the task worktree, then `wt finish`. When that
+// does not merge because the gate failed or because a changed file is outside the
+// brief's scope, the agent gets one retry with what `wt finish` said; a run that
+// is still refused then is an escalation.
 //
 // What the agent and the person do is recorded by the kit itself in the run's
 // own metrics folder; this module only drives the steps and appends to the
@@ -129,6 +131,13 @@ function gateTail(finish) {
   return `${failed ? `step "${failed.name}" ${failed.result}` : 'the gate failed'}:\n${lines.join('\n')}`;
 }
 
+/** The files `wt finish` found outside the brief's scope, as it prints them. */
+function scopeLines(finish) {
+  return finish.scope.outside.map((f) => `  ${f.path}  ${f.reason === 'forbidden' ? `forbidden by ${f.glob}` : 'not in the allowed paths'}`).join('\n');
+}
+
+const refused = (finish) => finish.reason === 'gate' || finish.reason === 'error' || finish.reason === 'scope';
+
 /**
  * Executes one planned run up to the point where a person has to review it.
  * @returns {object} the last log record of the run
@@ -189,9 +198,18 @@ export function executeRun(dir, planned, { baseEnv = process.env, claude, now = 
       return { merged: false, reason: 'error', error: err.message };
     }
   };
-  let finish = tryFinish();
-  if (finish.reason === 'gate' || finish.reason === 'error') {
-    const why = finish.reason === 'gate' ? gateTail(finish) : finish.error;
+  const first = tryFinish();
+  let finish = first;
+  if (first.reason === 'scope') {
+    attempts.push(
+      runAgent(ctx, {
+        attempt: 2,
+        prompt: `wt finish did not merge your work on briefs/${task.id}.json: the change has files outside the scope of the brief. Use the implementer sub-agent again to take them out of the change, so that they are as they are on dev, commit, and reply with its agent report.\n\n${scopeLines(first)}`,
+      }),
+    );
+    finish = tryFinish();
+  } else if (refused(first)) {
+    const why = first.reason === 'gate' ? gateTail(first) : first.error;
     attempts.push(
       runAgent(ctx, {
         attempt: 2,
@@ -202,18 +220,23 @@ export function executeRun(dir, planned, { baseEnv = process.env, claude, now = 
   }
 
   const quota = attempts.at(-1).quota;
+  const gateFailed = (f) => f.reason === 'gate' || f.reason === 'error';
   const base = {
     attempts,
-    first_gate: attempts.length === 1 && finish.reason !== 'gate' && finish.reason !== 'error' ? 'pass' : 'fail',
+    first_gate: gateFailed(first) ? 'fail' : 'pass',
+    // Whether the first change stayed inside the brief's scope; null when wt finish could not say (it threw).
+    first_scope: first.reason === 'scope' ? 'fail' : first.scope ? 'pass' : null,
+    outside_scope: finish.scope ? finish.scope.outside.length : null,
     risk: finish.risk ?? null,
     head_sha: finish.head_sha ?? null,
     quota,
   };
-  if (finish.reason === 'gate' || finish.reason === 'error') {
-    escalateTask(env, { taskId: task.id, kind: 'repeated_failure', reason: 'the gate failed twice in the E1 run' });
-    return log({ stage: 'review', ...base, merged: false, gate_failed: true, note: finish.error });
+  if (refused(finish)) {
+    const scope = finish.reason === 'scope';
+    escalateTask(env, { taskId: task.id, kind: 'repeated_failure', reason: scope ? 'the change was still outside the scope of its brief after one retry' : 'wt finish refused the change again after one retry' });
+    return log({ stage: 'review', ...base, merged: false, gate_failed: !scope, scope_blocked: scope, note: finish.error });
   }
-  return log({ stage: 'review', ...base, merged: finish.merged === true, merge_sha: finish.merge_sha ?? null, gate_failed: false });
+  return log({ stage: 'review', ...base, merged: finish.merged === true, merge_sha: finish.merge_sha ?? null, gate_failed: false, scope_blocked: false });
 }
 
 /** Whether quota allows another run, from the latest window percentages seen. */

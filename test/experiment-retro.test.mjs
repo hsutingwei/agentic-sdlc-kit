@@ -168,6 +168,7 @@ test('the analysis sets the reviewer agent against the hidden tests, without any
     cost_usd_total: 0.1,
     wall_s_median: rows.map((r) => r.reviewer_wall_s).sort((a, b) => a - b)[2],
   });
+  assert.ok(rows.every((r) => r.output_tokens === null && r.review_minutes === null && r.efficiency === null), 'no usage or human time before a review by a person');
   const pro = profiles.find((p) => p.profile === 'pro');
   assert.deepEqual([pro.runs, pro.hidden_checked, pro.hidden_passed, pro.reviewer_reviewed, pro.reviewer_accepted, pro.accepted, pro.reviews_timed], [2, 2, 1, 2, 2, 0, 0]);
 

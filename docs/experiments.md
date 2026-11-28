@@ -234,9 +234,9 @@ What it does not show:
 ## E2: harder tasks, to see what happens when an agent's change is wrong
 
 **Status:** prepared on 2026-11-27 (E2a): the tasks, the runner and the rules
-below. The pilot was run on 2026-11-28 (see "The pilot"); the 48 runs have not
-been made. Everything from "Question" to "Limits" was written before any run;
-what the pilot changes is listed under "Changes after the pilot", with reasons.
+below. The pilot and the 48 runs were made on 2026-11-28 (see "The pilot" and
+"Results"). Everything from "Question" to "Limits" was written before any run;
+what the pilot changed is listed under "Changes after the pilot", with reasons.
 
 ### Question
 
@@ -387,3 +387,114 @@ What it shows, and what it does not:
 ### Changes after the pilot
 
 None. No task was changed.
+
+### Results
+
+All 48 runs, 2026-11-28, Claude Code 2.1.330 on Windows, kit commit 37c0311, no
+run marked dirty, from `node tools/experiment/e2.mjs analyze`. Cost is the API
+list price the stream reports; the runs used a subscription.
+
+| Profile | Runs | First gate passed | Outside the scope | Retries | List cost USD (median / total) | Agent time (median / total) | Turns (median) | Models |
+|---|---|---|---|---|---|---|---|---|
+| ultra | 16 | 16 | 0 | 0 | 0.96 / 22.59 | 253 s / 107 min | 3 | opus + haiku in all 16 |
+| max | 16 | 16 | 0 | 0 | 0.90 / 17.02 | 246 s / 80 min | 3 | opus + haiku in all 16 |
+| pro | 16 | 16 | 0 | 0 | 0.37 / 10.12 | 138 s / 54 min | 2 | sonnet + haiku in 12, opus + haiku in the 4 high-risk runs |
+
+Median list cost by declared risk:
+
+| Profile | Low | Medium | High |
+|---|---|---|---|
+| ultra | 0.72 (2) | 0.89 (10) | 2.69 (4) |
+| max | 0.67 (2) | 0.89 (10) | 1.48 (4) |
+| pro | 0.29 (2) | 0.35 (10) | 1.36 (4) |
+
+The 48 runs cost USD 49.73 at list price and took 241 minutes of agent time; the
+seven-day quota moved from 32 % to 35 %. The run merged the 6 low-risk changes;
+the 42 others waited for a review.
+
+#### Hidden tests and the reviewer agent
+
+All 48 changes, reviewer `0f6759901d5d` (reviewer.md), sonnet at high effort,
+one run per change, with proofs.
+
+| | Hidden tests pass | Hidden tests fail |
+|---|---|---|
+| Reviewer accepts | 45 | 0 |
+| Reviewer does not accept | 3 | 0 |
+| No usable verdict | 0 | 0 |
+
+| Profile | Runs | Hidden tests pass | Reviewer accepts | Reviewer `act_on` findings | Of them proven | Reviewer `consider` findings |
+|---|---|---|---|---|---|---|
+| ultra | 16 | 16 | 14 | 2 | 2 | 1 |
+| max | 16 | 16 | 16 | 0 | 0 | 0 |
+| pro | 16 | 16 | 15 | 1 | 1 | 0 |
+
+The 48 reviews cost USD 4.92 at list price and took 15.4 minutes in all (median
+18 s, longest 41 s); the seven-day quota moved from 35 % to 36 %.
+
+#### The three changes the reviewer did not accept
+
+All three are changes for DEMO-208 (search and letter case), two made with
+`ultra` and one with `pro`. Each has one `act_on` finding with a test the
+reviewer wrote, and the kit ran that test on the change and saw it fail: a
+search that differs from a title only by letter case does not find it.
+
+Because the hidden tests pass on these three, six probes were written after the
+runs and run on every version of DEMO-208's search: a plain Latin one, a Greek
+prefix that ends in sigma in small and in capital letters, the capital sharp s
+against the small one in both directions, and the sharp s against SS.
+
+| Version | Probes that find the title, of 6 | Probes the starting point passes and this version fails |
+|---|---|---|
+| Starting point | 2 | |
+| Half-done version (`naive/`) | 4 | 0 |
+| Reference solution | 4 | 0 |
+| The six changes agents made | 4 in four of them, 2 in two | 1 in four of them, 2 in two |
+
+- All six agent changes handle the sharp s against SS, which the reference
+  solution does not, and all six lose the capital sharp s, which the reference
+  solution handles. One of those two probes found its title at the starting
+  point, so every one of the six changes breaks a search that worked.
+- Two of the six also lose the small Greek prefix, which worked at the starting
+  point. The reviewer held back one of these two and accepted the other.
+- Of the four others, the reviewer held back two and accepted two.
+- The reference solution misses two probes itself: the capital Greek prefix and
+  the sharp s against SS. Acceptance criterion 1 of DEMO-208 says "for every
+  letter and not only A to Z". Read to the letter, no version meets it, the
+  reference solution included. That is a fault in the task: its criterion asks
+  for more than its hidden tests check and than its own solution does. It was
+  found after the runs, so the task was not changed for these results.
+
+What this shows:
+
+- **No change failed its hidden tests: 0 of 48.** Every run passed its gate at
+  the first try and stayed inside its brief's scope, with every profile. With
+  0 of 48, a rate of failing changes of up to about 6 % cannot be ruled out
+  (95 %). The ways of leaving a task half-done that `naive/` shows were not
+  taken once.
+- **Passing the hidden tests is not the same as being right.** On DEMO-208 all
+  six changes pass their hidden tests and all six break a search that worked
+  before. The gate and the hidden tests did not see it; the reviewer saw it in
+  three of the six, each time with a test that proves it.
+- **The reviewer raised no alarm without a proof.** On the 42 changes of the
+  seven other tasks it gave no `act_on` finding. Its three `act_on` findings are
+  all proven.
+- **The reviewer does not find the same fault every time.** Three of six changes
+  with the same kind of fault were accepted. One run per change: nothing here
+  says what a second reviewer run would do.
+- **The profiles cannot be told apart by the hidden tests on these tasks
+  either.** By the median run, `pro` again did the work for about 40 % of the
+  list cost of `ultra` or `max`, in a little more than half the time; on the two
+  high-risk tasks `ultra` cost about 1.8 times as much as `max`.
+
+What it does not show:
+
+- **How often the reviewer catches a wrong change.** Three caught of six, on one
+  task, with one kind of fault, counted with probes written after seeing the
+  reviewer's findings. That is an observation, not a rate.
+- **That the 42 other changes are right.** They pass their hidden tests and the
+  reviewer accepted them. DEMO-208 shows what that is worth: hidden tests check
+  what their author thought of.
+- **Whether a held-back change gets fixed.** The reviewer ran after the fact;
+  nothing was sent back.
+- **Any saving of time**, as in E1: no run without the kit.

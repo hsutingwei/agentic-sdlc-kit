@@ -5,6 +5,15 @@ until 1.0 the command line and file formats may still change.
 
 ## Unreleased
 
+### Experiment E2, results
+
+- 48 runs, every task with every profile twice: no change fails its hidden
+  tests. The reviewer agent did not accept 3 of the 48, each with a proven
+  fault that the hidden tests do not check, and accepted 3 others with the same
+  kind of fault ([experiments.md](docs/experiments.md)).
+- Known fault, not changed: acceptance criterion 1 of DEMO-208 asks for more
+  than the task's hidden tests check and than its reference solution does.
+
 ### Experiment E2, prepared (E2a)
 
 - `tools/experiment/suites/e2/`: a larger starting point laid over the demo and

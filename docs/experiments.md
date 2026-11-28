@@ -234,8 +234,9 @@ What it does not show:
 ## E2: harder tasks, to see what happens when an agent's change is wrong
 
 **Status:** prepared on 2026-11-27 (E2a): the tasks, the runner and the rules
-below. No run has been made. This section was written before any run; what the
-pilot changes will be listed under "Changes after the pilot", with reasons.
+below. The pilot was run on 2026-11-28 (see "The pilot"); the 48 runs have not
+been made. Everything from "Question" to "Limits" was written before any run;
+what the pilot changes is listed under "Changes after the pilot", with reasons.
 
 ### Question
 
@@ -350,6 +351,39 @@ node tools/experiment/e2.mjs analyze ~/asdk-e2
 - No run without the kit: E2, like E1, does not show how much faster work with
   the kit is.
 
+### The pilot
+
+Run on 2026-11-28: eight runs, every task once with `pro`, Claude Code 2.1.330
+on Windows, kit commit 345fdc0. These runs are not results and will not be
+counted with the 48.
+
+| | |
+|---|---|
+| Runs | 8 of 8 finished |
+| Gate passed at the first try | 8 |
+| Changes with a file outside the brief's scope | 0 |
+| Retries | 0 |
+| Changes that pass their hidden tests | 8 of 8 |
+| Hidden tests run five more times on every commit | the same result every time |
+| List cost USD (median / total) | 0.38 / 4.98 |
+| Agent time (median / total) | 196 s / 27 min |
+| Turns (median) | 2 |
+| Models | sonnet + haiku in 6, opus + haiku in the 2 high-risk runs |
+| Seven-day quota | 32 % after the first run and after the last |
+
+What it shows, and what it does not:
+
+- The tasks cost more work than E1's: with `pro`, E1's median run took 78 s and
+  USD 0.20 at list price; here it took 196 s and USD 0.38.
+- No change was wrong. The way of leaving each task half-done that `naive/`
+  shows is not a way the agent took, in one run per task.
+- One run per task is not a rate. Eight right changes out of eight leave room
+  for a rate of wrong changes of up to about three in ten (95 %), so the pilot
+  does not say that the 48 runs would have no wrong change, and it does not say
+  they would have one.
+- No fault was found in a task: no hidden test failed, so none was checked
+  against its criterion for that reason, and none gave two results.
+
 ### Changes after the pilot
 
-None yet: no pilot has been run.
+None. No task was changed.
